@@ -1,7 +1,6 @@
 ﻿using Dynamicweb.Configuration;
 using Dynamicweb.Content;
 using Dynamicweb.Core;
-using Dynamicweb.Ecommerce.Common;
 using Dynamicweb.Ecommerce.International;
 using Dynamicweb.Ecommerce.Products;
 using Dynamicweb.Ecommerce.Products.Categories;
@@ -33,9 +32,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.PIM
     {
         private IEnumerable<ProductField> StandardFields = ProductField.GetStandardProductFields();
         private IEnumerable<ProductField> CustomFields = ProductField.GetProductFields();
-        private IEnumerable<ProductField> CategoryFields = ProductField.GetCategoryFields();
         private IEnumerable<Category> Categories = Ecommerce.Services.ProductCategories.GetCategories();
-        private ProductService ProductService = new ProductService();
         private Lazy<PropertyInfo[]> ProductProperties = new Lazy<PropertyInfo[]>(() => typeof(Product).GetProperties());
         private Dictionary<string, bool> isReadOnlyByField = new Dictionary<string, bool>();
         private Dictionary<string, bool> isInheritedFromDefaultByFieldAndLang = new Dictionary<string, bool>();
@@ -365,14 +362,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.PIM
         {
             if (Field.TryParseUniqueId(fieldSystemName, out var categoryId, out var fieldId))
             {
-                if (string.IsNullOrEmpty(languageId))
-                {
-                    languageId = Application.DefaultLanguage.LanguageId;
-                }
-
-                var category = Categories.FirstOrDefault(c => string.Equals(c.Language?.LanguageId, languageId) && string.Equals(c.Id, categoryId));
-                if (!string.IsNullOrEmpty(category?.Id))
-                    return Ecommerce.Services.ProductCategories.GetFieldsByCategoryId(category.Id).FirstOrDefault(f => string.Equals(f.Id, fieldId));
+                return Ecommerce.Services.ProductCategoryFields.GetFieldById(categoryId, fieldId);
             }
             return null;
         }
@@ -439,20 +429,12 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.PIM
                 }
             }
             else if (Field.TryParseUniqueId(fieldSystemName, out var categoryId, out var fieldId))
-            {   
-                Category category = Ecommerce.Services.ProductCategories.GetCategoryById(categoryId, language.LanguageId);
-                if (category is null)
+            {
+                var categoryField = Ecommerce.Services.ProductCategoryFields.GetFieldById(categoryId, fieldId);
+                if (categoryField != null)
                 {
-                    category = Ecommerce.Services.ProductCategories.GetCategoryById(categoryId, defaultLanguage.LanguageId);
+                    result = categoryField.GetLabel(language.LanguageId);
                 }
-                if (category != null)
-                {
-                    Field categoryField = Ecommerce.Services.ProductCategories.GetFieldsByCategoryId(category.Id).FirstOrDefault(f => string.Equals(f.Id, fieldId, StringComparison.OrdinalIgnoreCase));
-                    if (categoryField != null)
-                    {
-                        result = categoryField.Label;
-                    }
-                }                
                 if (string.IsNullOrEmpty(result))
                 {
                     result = fieldSystemName;
@@ -487,8 +469,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.PIM
             CultureInfo culture = GetCulture(country?.CultureInfo);
             if (culture != null)
             {
-                IAreaService service = Extensibility.ServiceLocator.Current.GetAreaService();
-                foreach (Area area in service.GetAreas())
+                foreach (Area area in Services.Areas.GetAreas())
                 {
                     Rendering.Designer.Design design = area?.Layout?.Design;
                     if (design != null)
@@ -553,11 +534,11 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.PIM
                 case "ProductLongDescription":
                 case "ProductShortDescription":
                     return "EditorText";
-                    
+
                 case "ProductStock":
                 case "ProductWorkflowStateId":
                     return "Integer";
-                    
+
                 case "ProductCost":
                 case "ProductPrice":
                 case "ProductWeight":
@@ -568,7 +549,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.PIM
                 case "ProductPurchaseMinimumQuantity":
                 case "ProductPurchaseQuantityStep":
                     return "Double";
-                    
+
                 case "ProductActive":
                 case "ProductExcludeFromIndex":
                 case "ProductExcludeFromCustomizedUrls":
@@ -576,9 +557,9 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.PIM
                 case "ProductShowInProductList":
                 case "ProductNeverOutOfStock":
                     return "Bool";
-                    
+
                 default:
-                    return "Text";                    
+                    return "Text";
             }
         }
 
@@ -613,30 +594,6 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.PIM
             return false;
         }
 
-        [Obsolete("This should be extracted to Ecommerce")]
-        internal bool IsCategoryFieldVisible(Product product, Dynamicweb.Ecommerce.Products.Categories.Field field)
-        {
-            object categoryFieldValue = product.GetCategoryValue(field.Category.Id, field.Id, false);
-            object categoryFieldValueInherited = product.GetCategoryValue(field.Category.Id, field.Id, !field.Category.ProductProperties);
-            bool fieldHasInheritedValue = categoryFieldValueInherited != null && !string.IsNullOrEmpty(Converter.ToString(categoryFieldValueInherited));
-            bool fieldHasValue = categoryFieldValue != null;
-
-            if (!(!field.HideEmpty || (fieldHasValue || fieldHasInheritedValue)))
-            {
-                return false;
-            }
-
-            //On regular product categories (Not ProductProperties) the inheritance will always return an empty string.
-            if (String.IsNullOrEmpty(Converter.ToString(categoryFieldValue)))
-            {
-                return true;
-            }
-            else
-            {
-                return true;
-            }
-        }
-
         public bool IsFieldInherited(string fieldName, bool variantProduct, string langId)
         {
             bool ret = false;
@@ -646,7 +603,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.PIM
             {
                 ret = true;
             }
-            else if (!string.IsNullOrEmpty(langId) && langId != Application.DefaultLanguage.LanguageId && !Converter.ToBoolean(SystemConfiguration.Instance.GetValue(GetFieldCheckSettingKeyFor(fieldName, section, FieldDifferentiationType.Language))))
+            else if (!string.IsNullOrEmpty(langId) && langId != Ecommerce.Services.Languages.GetDefaultLanguageId() && !Converter.ToBoolean(SystemConfiguration.Instance.GetValue(GetFieldCheckSettingKeyFor(fieldName, section, FieldDifferentiationType.Language))))
             {
                 ret = true;
             }
@@ -661,7 +618,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.PIM
             {
                 FieldDifferentiationSection section = GetFieldSection(fieldName);
                 fieldName = GetGlobalSettingsFieldSystemName(fieldName);
-                if (!string.IsNullOrEmpty(langId) && langId != Application.DefaultLanguage.LanguageId && !Converter.ToBoolean(SystemConfiguration.Instance.GetValue(GetFieldCheckSettingKeyFor(fieldName, section, FieldDifferentiationType.Language))))
+                if (!string.IsNullOrEmpty(langId) && langId != Ecommerce.Services.Languages.GetDefaultLanguageId() && !Converter.ToBoolean(SystemConfiguration.Instance.GetValue(GetFieldCheckSettingKeyFor(fieldName, section, FieldDifferentiationType.Language))))
                 {
                     isInheritedFromDefault = true;
                 }
@@ -709,7 +666,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.PIM
             {
                 ret = true;
             }
-            else if (entryLangId != Application.DefaultLanguage.LanguageId && !Converter.ToBoolean(SystemConfiguration.Instance.GetValue(string.Format("/Globalsettings/Ecom/ProductCategoriesLanguageControl/Language/{0}", field.Category.Id + "." + field.Id))))
+            else if (entryLangId != Ecommerce.Services.Languages.GetDefaultLanguageId() && !Converter.ToBoolean(SystemConfiguration.Instance.GetValue(string.Format("/Globalsettings/Ecom/ProductCategoriesLanguageControl/Language/{0}", field.Category.Id + "." + field.Id))))
             {
                 ret = true;
             }

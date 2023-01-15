@@ -1,4 +1,5 @@
 ﻿using Dynamicweb.Configuration;
+using Dynamicweb.Content;
 using Dynamicweb.Core;
 using Dynamicweb.Ecommerce.Common;
 using Dynamicweb.Ecommerce.International;
@@ -496,19 +497,8 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.PIM
         {            
             if (!string.IsNullOrEmpty(value) && field.TypeId == ListTypeId)
             {                
-                FieldOptionCollection options = FieldOption.GetOptionsByFieldId(field.Id);
-                if (!string.Equals(languageId, Application.DefaultLanguage.LanguageId))
-                {
-                    foreach (var option in options)
-                    {
-                        string translatedName = FieldOptionTranslation.GetTranslatedOptionName(option, languageId);
-                        if (!string.IsNullOrEmpty(translatedName))
-                        {
-                            option.Name = translatedName;
-                        }
-                    }
-                }
-                return GetListSelectedOptionValueByName(value, options);
+                FieldOptionCollection options = Ecommerce.Services.FieldOptions.GetOptionsByFieldId(field.Id);
+                return GetListSelectedOptionValueByName(value, options, languageId);
             }
             return value;
         }
@@ -517,7 +507,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.PIM
         {            
             if (!string.IsNullOrEmpty(value) && categoryField.Type == ListTypeId.ToString())
             {                
-                if (!string.Equals(Application.DefaultLanguage.LanguageId, languageId, StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(Ecommerce.Services.Languages.GetDefaultLanguageId(), languageId, StringComparison.OrdinalIgnoreCase))
                 {
                     Field languageField = FieldsHelper.GetCategoryField(field, languageId);
                     if (languageField != null)
@@ -525,12 +515,12 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.PIM
                         categoryField = languageField;
                     }
                 }                
-                return GetListSelectedOptionValueByName(value, categoryField.FieldOptions);
+                return GetListSelectedOptionValueByName(value, categoryField.FieldOptions, languageId);
             }
             return value;
         }
 
-        private string GetListSelectedOptionValueByName(string value, FieldOptionCollection options)
+        private string GetListSelectedOptionValueByName(string value, FieldOptionCollection options, string languageId)
         {
             List<string> ids = new List<string>();
             if (!string.IsNullOrEmpty(value))
@@ -547,7 +537,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.PIM
 
                 foreach (string fieldValue in multipleValues)
                 {
-                    var option = options.FirstOrDefault(o => !string.IsNullOrEmpty(o.Name) && string.Equals(o.Name, fieldValue));
+                    var option = options.FirstOrDefault(o => !string.IsNullOrEmpty(o.GetName(languageId)) && string.Equals(o.GetName(languageId), fieldValue));
                     if (option != null)
                     {
                         ids.Add(option.Value);

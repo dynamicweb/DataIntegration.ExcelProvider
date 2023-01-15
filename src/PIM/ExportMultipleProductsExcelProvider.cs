@@ -70,7 +70,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.PIM
                     foreach (var familyProducts in allProductsFamilies.GroupBy(product => product.Id))
                     {
                         var productId = familyProducts.Key;
-                        var mainProduct = familyProducts.FirstOrDefault(product => string.IsNullOrEmpty(product.VariantId) && product.LanguageId == Application.DefaultLanguage.LanguageId);
+                        var mainProduct = familyProducts.FirstOrDefault(product => string.IsNullOrEmpty(product.VariantId) && product.LanguageId == Ecommerce.Services.Languages.GetDefaultLanguageId());
                         if (mainProduct != null)
                         {
                             allProductsAreNotAvailableInTheDefaultLanguage = false;

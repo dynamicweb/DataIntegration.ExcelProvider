@@ -38,7 +38,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.PIM
 
             var numericFields = GetNumericFields(fields);
             var familyProducts = ProductService.GetByProductIDs(new[] { productId }, false, string.Empty, false, false);
-            var mainProduct = familyProducts.FirstOrDefault(product => string.IsNullOrEmpty(product.VariantId) && product.LanguageId == Application.DefaultLanguage.LanguageId);
+            var mainProduct = familyProducts.FirstOrDefault(product => string.IsNullOrEmpty(product.VariantId) && product.LanguageId == Ecommerce.Services.Languages.GetDefaultLanguageId());
             if (mainProduct != null)
             {
                 var languageIdProductDictionary = GetLanguageIdProductDictionary(mainProduct, familyProducts, languages);

@@ -52,31 +52,6 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.PIM
         /// </summary>
         /// <param name="languages">language id to get not valid variants from</param>
         /// <returns></returns>
-        [Obsolete("Use GetSimpleVariants instead")]
-        public Dictionary<string, VariantCombinationCollection> GetInvalidSimpleVariants(IEnumerable<string> languages)
-        {
-            Dictionary<string, VariantCombinationCollection> result = new Dictionary<string, VariantCombinationCollection>();
-            var variants = GetSimpleVariants(languages);            
-            if(variants != null)
-            {
-                foreach(string key in variants.Keys)
-                {
-                    var collection = new VariantCombinationCollection();
-                    foreach(VariantCombination variantCombination in variants[key])
-                    {
-                        collection.Add(variantCombination);
-                    }
-                    result.Add(key, collection);
-                }
-            }
-            return result;
-        }
-
-        /// <summary>
-        /// Gets product simple variants that need to be extended for successful import
-        /// </summary>
-        /// <param name="languages">language id to get not valid variants from</param>
-        /// <returns></returns>
         public Dictionary<string, IList<VariantCombination>> GetSimpleVariants(IEnumerable<string> languages)
         {            
             return BaseImportExcelProvider.GetSimpleVariants(languages);

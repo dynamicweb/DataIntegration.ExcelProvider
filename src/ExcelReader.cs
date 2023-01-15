@@ -65,10 +65,10 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                     {
                         conn.Open();
                     }
-                    catch (Exception ex)
+                    catch (Exception)
                     {
-                        
-                        throw ex;
+
+                        throw;
                     }
                    
 

@@ -300,9 +300,9 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
 
         public ExcelProvider()
         {
-            if (string.IsNullOrEmpty(FilesFolderName) && !string.IsNullOrEmpty(Dynamicweb.Content.Files.FilesAndFolders.GetFilesFolderName()))
+            if (string.IsNullOrEmpty(FilesFolderName))
             {
-                FilesFolderName = Dynamicweb.Content.Files.FilesAndFolders.GetFilesFolderName();
+                FilesFolderName = "Files";
             }
         }
 

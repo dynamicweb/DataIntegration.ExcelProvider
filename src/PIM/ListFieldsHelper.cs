@@ -71,7 +71,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.PIM
             {
                 if (!FieldOptions.TryGetValue(field, out Dictionary<string, FieldOption> lookupCollection))
                 {
-                    var fieldOptionCollection = FieldOption.GetOptionsByFieldId(customListBoxField.Id);
+                    var fieldOptionCollection = Ecommerce.Services.FieldOptions.GetOptionsByFieldId(customListBoxField.Id);
                     lookupCollection = new Dictionary<string, FieldOption>();
                     foreach (var fieldOption in fieldOptionCollection)
                     {
@@ -166,7 +166,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.PIM
 
         public string GetTranslatedOptionName(object field, FieldOption option, string languageId)
         {
-            string optionName = option.Name;
+            string optionName = option.GetName(languageId);
             if (!string.IsNullOrEmpty(languageId))
             {
                 Dictionary<string, string> optionTranslations = null;
@@ -180,7 +180,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.PIM
 
                 if (field is ProductField)
                 {
-                    string translatedName = FieldOptionTranslation.GetTranslatedOptionName(option, languageId);
+                    string translatedName = option.GetName(languageId);
                     if (!string.IsNullOrEmpty(translatedName))
                     {
                         optionName = translatedName;
@@ -193,20 +193,17 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.PIM
                     Field categoryListBoxField = (Field)field;
                     if (categoryListBoxField != null && categoryListBoxField.Category != null)
                     {
-                        var fields = Field.GetFieldsByCategoryId(categoryListBoxField.Category.Id, languageId);
-                        if (fields != null)
+                        var categoryField = Ecommerce.Services.ProductCategoryFields.GetFieldById(categoryListBoxField.Category.Id, categoryListBoxField.Id);
+                        if (categoryField != null && categoryField.FieldOptions != null)
                         {
-                            var categoryField = fields.FirstOrDefault(f => string.Equals(f.Id, categoryListBoxField.Id));
-                            if (categoryField != null && categoryField.FieldOptions != null)
+                            var categoryFieldOption = Ecommerce.Services.FieldOptions.GetOptionById(option.Id);
+                            if (categoryFieldOption != null && !string.IsNullOrEmpty(categoryFieldOption.GetName(languageId)))
                             {
-                                var categoryFieldOption = categoryField.FieldOptions.FirstOrDefault(o => string.Equals(o.Id, option.Id));
-                                if (categoryFieldOption != null && !string.IsNullOrEmpty(categoryFieldOption.Name))
-                                {
-                                    optionName = categoryFieldOption.Name;
-                                    SetOptionTranslationsCache(option.Id, languageId, categoryFieldOption.Name);
-                                }
+                                optionName = categoryFieldOption.GetName(languageId);
+                                SetOptionTranslationsCache(option.Id, languageId, categoryFieldOption.GetName(languageId));
                             }
                         }
+
                     }
                 }
             }
@@ -233,7 +230,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.PIM
             {
                 foreach (var option in options.Value.Values)
                 {
-                    string optionName = option.Name;
+                    string optionName = option.GetName(languageId);
                     if (!string.IsNullOrEmpty(languageId))
                     {
                         optionName = GetTranslatedOptionName(options.Key, option, languageId);

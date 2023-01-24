@@ -1,7 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<Version>4.0.15</Version>
-		<AssemblyVersion>4.0.14.0</AssemblyVersion>
+		<VersionPrefix>10.0.0</VersionPrefix>
+		<VersionSuffix>Alpha0001</VersionSuffix>
+		<AssemblyVersion>1.0.0.0</AssemblyVersion>
 		<Description>Excel Provider</Description>
 	</PropertyGroup>
 	<PropertyGroup>
@@ -16,8 +17,10 @@
 		<TargetFramework>net7.0</TargetFramework>
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
 		<IncludeSymbols>true</IncludeSymbols>
+		<EmbedUntrackedSources>true</EmbedUntrackedSources>
+		<ContinuousIntegrationBuild >true</ContinuousIntegrationBuild>
+		<PublishRepositoryUrl>true</PublishRepositoryUrl>
 		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
-		<FileVersion>4.0.14.0</FileVersion>
 	</PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="Dynamicweb.DataIntegration" Version="10.0.0-*" />

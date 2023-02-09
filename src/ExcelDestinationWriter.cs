@@ -78,9 +78,10 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                         case ScriptType.Constant:                        
                             evaluatedValue = columnMapping.GetScriptValue();
                             break;
+                        case ScriptType.NewGuid:
+                            evaluatedValue = columnMapping.GetScriptValue();
+                            break;
                     }
-                    if (columnMapping.HasNewGuidScript())
-                        evaluatedValue = columnMapping.GetScriptValue();
 
                     r[columnMapping.DestinationColumn.Name] = evaluatedValue;
                 }

@@ -1,18 +1,17 @@
-﻿using System;
+﻿using Dynamicweb.Core;
+using Dynamicweb.DataIntegration.Integration;
+using Dynamicweb.DataIntegration.Integration.Interfaces;
+using Dynamicweb.Extensibility.AddIns;
+using Dynamicweb.Extensibility.Editors;
+using Dynamicweb.Logging;
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Data;
+using System.Data.OleDb;
 using System.IO;
 using System.Xml;
 using System.Xml.Linq;
-using Dynamicweb.DataIntegration.Integration.Interfaces;
-using Dynamicweb.Extensibility.Editors;
-using System.Data;
-using System.Data.OleDb;
-using Dynamicweb.Extensibility.AddIns;
-
-using Dynamicweb.DataIntegration.Integration;
-using Dynamicweb.Logging;
-using Dynamicweb.Core;
 
 namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
 {
@@ -22,7 +21,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
         private const string ExcelExtension = ".xlsx";
         //path should point to a folder - if it doesn't, write will fail.
 
-        [AddInParameter("Source file"), AddInParameterEditor(typeof(FileManagerEditor), "inputClass=NewUIinput;folder=/Files/;allowBrowse=true;"), AddInParameterGroup("Source")]
+        [AddInParameter("Source file"), AddInParameterEditor(typeof(FileManagerEditor), "folder=/Files/;required"), AddInParameterGroup("Source")]
         public string SourceFile
         {
             get
@@ -35,7 +34,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
             }
         }
 
-        [AddInParameter("Destination file"), AddInParameterEditor(typeof(TextParameterEditor), $"inputClass=NewUIinput;append={ExcelExtension}"), AddInParameterGroup("Destination")]
+        [AddInParameter("Destination file"), AddInParameterEditor(typeof(TextParameterEditor), $"append={ExcelExtension};required"), AddInParameterGroup("Destination")]
         public string DestinationFile
         {
             get
@@ -48,9 +47,9 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
             }
         }
         private string _fileName;
-        private string _destinationFolder = "/Files/Integration";
+        private string _destinationFolder = "/Files";
 
-        [AddInParameter("Destination folder"), AddInParameterEditor(typeof(FolderSelectEditor), "htmlClass=NewUIinput;"), AddInParameterGroup("Destination")]
+        [AddInParameter("Destination folder"), AddInParameterEditor(typeof(FolderSelectEditor), "folder=/Files/"), AddInParameterGroup("Destination")]
         public string DestinationFolder
         {
             get
@@ -139,7 +138,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
             }
             else
             {
-                srcFilePath = this.WorkingDirectory.CombinePaths(FilesFolderName,this._fileName).Replace("\\", "/");
+                srcFilePath = this.WorkingDirectory.CombinePaths(FilesFolderName, this._fileName).Replace("\\", "/");
             }
             return srcFilePath;
         }
@@ -274,7 +273,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                             columnCount = dt.Columns.Count;
                         }
                         foreach (System.Data.DataColumn c in dt.Columns)
-                        {                            
+                        {
                             excelTable.AddColumn(new Column(c.ColumnName, c.DataType, excelTable));
                         }
 
@@ -350,21 +349,17 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
         }
 
         public override string ValidateDestinationSettings()
-        {            
+        {
             string extension = Path.GetFileNameWithoutExtension(_fileName);
-            if (!string.Equals(extension, _fileName, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(extension) && !(extension.EndsWith(".xlsx") || extension.EndsWith(".xls")))            
+            if (!string.Equals(extension, _fileName, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(extension) && !(extension.EndsWith(".xlsx") || extension.EndsWith(".xls")))
             {
-                return "File has to end with .xlsx or .xls";                
+                return "File has to end with .xlsx or .xls";
             }
             return "";
         }
 
         public override string ValidateSourceSettings()
         {
-            if (string.IsNullOrEmpty(this.SourceFile))
-            {
-                return "No file is selected";
-            }
             if (_fileName.EndsWith(".xlsx") || _fileName.EndsWith(".xls") || _fileName.EndsWith(".xlsm"))
             {
                 string filename = GetSourceFilePath();

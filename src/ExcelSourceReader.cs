@@ -93,10 +93,6 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                         else
                         {
                             string value = dr[column.Name].ToString();
-                            if (value.Contains('"'))
-                            {
-                                value = value.Replace(string.Format("{0}", '"'), string.Empty);
-                            }
                             if (NumericTypes.Contains(column.Type))
                             {
                                 if (string.IsNullOrEmpty(value))

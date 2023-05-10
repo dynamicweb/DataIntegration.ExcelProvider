@@ -1,4 +1,5 @@
-﻿using Dynamicweb.DataIntegration.Integration;
+﻿using Dynamicweb.Core;
+using Dynamicweb.DataIntegration.Integration;
 using Dynamicweb.DataIntegration.Integration.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -114,8 +115,112 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                 //check columns from conditions
                 rowsCount++;
             }
+
             nextResult = result;
-            return false;
+
+            if (RowMatchesConditions())
+            {
+                return false;
+            }
+
+            return IsDone();
+        }
+
+        private bool RowMatchesConditions()
+        {
+            foreach (MappingConditional conditional in mapping.Conditionals)
+            {
+                var sourceColumnConditional = nextResult[conditional.SourceColumn.Name]?.ToString() ?? string.Empty;
+                var theCondtion = conditional?.Condition ?? string.Empty;
+                switch (conditional.ConditionalOperator)
+                {
+                    case ConditionalOperator.EqualTo:
+                        if (!sourceColumnConditional.Equals(theCondtion))
+                        {
+                            return false;
+                        }
+                        break;
+                    case ConditionalOperator.DifferentFrom:
+                        if (sourceColumnConditional.Equals(theCondtion))
+                        {
+                            return false;
+                        }
+                        break;
+                    case ConditionalOperator.Contains:
+                        if (!sourceColumnConditional.Contains(theCondtion))
+                        {
+                            return false;
+                        }
+                        break;
+                    case ConditionalOperator.LessThan:
+                        if (Converter.ToDouble(sourceColumnConditional) >= Converter.ToDouble(theCondtion))
+                        {
+                            return false;
+                        }
+                        break;
+                    case ConditionalOperator.GreaterThan:
+                        if (Converter.ToDouble(sourceColumnConditional) <= Converter.ToDouble(theCondtion))
+                        {
+                            return false;
+                        }
+                        break;
+                    case ConditionalOperator.In:
+                        var inConditionalValue = theCondtion;
+                        if (!string.IsNullOrEmpty(inConditionalValue))
+                        {
+                            List<string> inConditions = inConditionalValue.Split(',').Select(obj => obj.Trim()).ToList();
+                            if (!inConditions.Contains(sourceColumnConditional))
+                            {
+                                return false;
+                            }
+                        }
+                        break;
+                    case ConditionalOperator.StartsWith:
+                        if (!sourceColumnConditional.StartsWith(theCondtion))
+                        {
+                            return false;
+                        }
+                        break;
+                    case ConditionalOperator.NotStartsWith:
+                        if (sourceColumnConditional.StartsWith(theCondtion))
+                        {
+                            return false;
+                        }
+                        break;
+                    case ConditionalOperator.EndsWith:
+                        if (!sourceColumnConditional.EndsWith(theCondtion))
+                        {
+                            return false;
+                        }
+                        break;
+                    case ConditionalOperator.NotEndsWith:
+                        if (sourceColumnConditional.EndsWith(theCondtion))
+                        {
+                            return false;
+                        }
+                        break;
+                    case ConditionalOperator.NotContains:
+                        if (sourceColumnConditional.Contains(theCondtion))
+                        {
+                            return false;
+                        }
+                        break;
+                    case ConditionalOperator.NotIn:
+                        var notInConditionalValue = theCondtion;
+                        if (!string.IsNullOrEmpty(notInConditionalValue))
+                        {
+                            List<string> notInConditions = notInConditionalValue.Split(',').Select(obj => obj.Trim()).ToList();
+                            if (notInConditions.Contains(sourceColumnConditional))
+                            {
+                                return false;
+                            }
+                        }
+                        break;
+                    default:
+                        break;
+                }
+            }
+            return true;
         }
 
         private List<Column> GetColumnsFromMappingConditions(IEnumerable<string> columnsToSkip)

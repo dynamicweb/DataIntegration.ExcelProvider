@@ -50,11 +50,6 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
 
         public virtual void Write(Dictionary<string, object> row)
         {
-            if (!currentMapping.Conditionals.CheckConditionals(row))
-            {
-                return;
-            }
-
             if (tableForExcel == null)
             {
                 tableForExcel = GetTableForExcel();

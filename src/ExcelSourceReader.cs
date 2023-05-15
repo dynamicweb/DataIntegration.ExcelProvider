@@ -1,4 +1,5 @@
-﻿using Dynamicweb.DataIntegration.Integration;
+﻿using Dynamicweb.Core;
+using Dynamicweb.DataIntegration.Integration;
 using Dynamicweb.DataIntegration.Integration.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -17,6 +18,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
         private ExcelReader reader;
         private int rowsCount = 0;
         private Dictionary<string, object> nextResult;
+        private readonly ExcelProvider _provider;
 
         private HashSet<Type> NumericTypes = new HashSet<Type>
         {
@@ -50,11 +52,12 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
             VerifyDuplicateColumns();
         }
 
-        public ExcelSourceReader(string filename, Mapping mapping)
+        public ExcelSourceReader(string filename, Mapping mapping, ExcelProvider provider)
         {
             path = filename;
             this.mapping = mapping;
             VerifyDuplicateColumns();
+            _provider = provider;
         }
 
         public ExcelSourceReader()
@@ -114,8 +117,27 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                 //check columns from conditions
                 rowsCount++;
             }
+
             nextResult = result;
-            return false;
+
+            if (RowMatchesConditions())
+            {
+                return false;
+            }
+
+            return IsDone();
+        }
+
+        private bool RowMatchesConditions()
+        {
+            foreach (MappingConditional conditional in mapping.Conditionals)
+            {
+                if (!_provider.CheckCondition(conditional, nextResult))
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         private List<Column> GetColumnsFromMappingConditions(IEnumerable<string> columnsToSkip)

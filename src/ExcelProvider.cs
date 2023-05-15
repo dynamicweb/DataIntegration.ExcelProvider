@@ -178,11 +178,11 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
             {
                 if (!string.IsNullOrEmpty(WorkingDirectory))
                 {
-                    return new ExcelSourceReader(GetSourceFilePath(), mapping);
+                    return new ExcelSourceReader(GetSourceFilePath(), mapping, this);
                 }
                 else
                 {
-                    return new ExcelSourceReader(_fileName, mapping);
+                    return new ExcelSourceReader(_fileName, mapping, this);
                 }
             }
             else

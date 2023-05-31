@@ -2,9 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Data.OleDb;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.IO;
 
 namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
 {
@@ -40,97 +38,98 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
         public ExcelReader(String filename)
         {
             Filename = filename;
-            if (ExcelSet == null)
+            if (filename.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) ||
+                filename.EndsWith(".xls", StringComparison.OrdinalIgnoreCase) ||
+                filename.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase))
             {
-                string strConn;
-                if (filename.Substring(filename.LastIndexOf('.')).ToLower() == ".xlsx" ||
-                    filename.Substring(filename.LastIndexOf('.')).ToLower() == ".xlsm")
+                if (ExcelSet == null)
                 {
-                    strConn = "Provider=Microsoft.ACE.OLEDB.12.0;Data Source=" + Filename + ";Extended Properties=\"Excel 12.0;HDR=Yes;IMEX=1\"";
-                }
-                else if (filename.Substring(filename.LastIndexOf('.')).ToLower() == ".xls")
-                {
-                    strConn = "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" + Filename + ";Extended Properties=\"Excel 8.0;HDR=Yes;IMEX=1\"";
-                }
-                else
-                {
-                    throw new Exception("File is not an Excel file");
-                }
-
-                DataSet ds = new DataSet();
-
-                using (OleDbConnection conn = new OleDbConnection(strConn))
-                {
-                    try
+                    if (File.Exists(filename))
                     {
-                        conn.Open();
-                    }
-                    catch (Exception)
-                    {
+                        string strConn = ExcelProvider.GetOLEDB12ConnectionString(Filename);
 
-                        throw;
-                    }
-                   
+                        if (filename.EndsWith(".xls", StringComparison.OrdinalIgnoreCase))
+                        {
+                            strConn = ExcelProvider.GetOLEDB4ConnectionString(Filename);
+                        }
 
-                    DataTable schemaTable = conn.GetOleDbSchemaTable(OleDbSchemaGuid.Tables, new object[] { null, null, null, "TABLE" });
+                        DataSet ds = new DataSet();
 
-                    foreach (DataRow schemaRow in schemaTable.Rows)
-                    {
-                        string sheet = schemaRow["TABLE_NAME"].ToString();
-
-                        if (!sheet.EndsWith("_") && sheet.Contains("$"))
+                        using (OleDbConnection conn = new OleDbConnection(strConn))
                         {
                             try
                             {
-                                OleDbCommand cmd = new OleDbCommand("SELECT * FROM [" + sheet + "]", conn);
-                                cmd.CommandType = CommandType.Text;
-
-                                DataTable outputTable = new DataTable(sheet);
-                                ds.Tables.Add(outputTable);
-                                new OleDbDataAdapter(cmd).Fill(outputTable);
-                                outputTable.Dispose();
+                                conn.Open();
                             }
-                            catch (Exception ex)
+                            catch (Exception)
                             {
-                                throw new Exception(ex.Message + string.Format("Sheet: {0}.File.F{1}", sheet, Filename), ex);
+                                throw;
                             }
-                        }
-                    }
 
-                    conn.Close();
-                    conn.Dispose();
-                }
+                            DataTable schemaTable = conn.GetOleDbSchemaTable(OleDbSchemaGuid.Tables, new object[] { null, null, null, "TABLE" });
 
-
-                ExcelSet = ds;
-
-                foreach (DataTable dt in ExcelSet.Tables)
-                {
-                    List<DataRow> deleteRows = new List<DataRow>();
-                    dt.TableName = dt.TableName.Replace("$", String.Empty);
-                    foreach (DataRow row in dt.Rows)
-                    {
-                        bool HasValue = false;
-                        foreach (DataColumn c in dt.Columns)
-                        {
-                            string value = row[c].ToString();
-                            if (!String.IsNullOrWhiteSpace(value) || !String.IsNullOrEmpty(value))
+                            foreach (DataRow schemaRow in schemaTable.Rows)
                             {
-                                HasValue = true;
-                                break;
+                                string sheet = schemaRow["TABLE_NAME"].ToString();
+
+                                if (!sheet.EndsWith("_") && sheet.Contains("$"))
+                                {
+                                    try
+                                    {
+                                        OleDbCommand cmd = new OleDbCommand("SELECT * FROM [" + sheet + "]", conn);
+                                        cmd.CommandType = CommandType.Text;
+
+                                        DataTable outputTable = new DataTable(sheet);
+                                        ds.Tables.Add(outputTable);
+                                        new OleDbDataAdapter(cmd).Fill(outputTable);
+                                        outputTable.Dispose();
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        throw new Exception(ex.Message + string.Format("Sheet: {0}.File.F{1}", sheet, Filename), ex);
+                                    }
+                                }
                             }
+
+                            conn.Close();
+                            conn.Dispose();
                         }
-                        if (HasValue == false)
+
+                        ExcelSet = ds;
+
+                        foreach (DataTable dt in ExcelSet.Tables)
                         {
-                            deleteRows.Add(row);
+                            List<DataRow> deleteRows = new List<DataRow>();
+                            dt.TableName = dt.TableName.Replace("$", String.Empty);
+                            foreach (DataRow row in dt.Rows)
+                            {
+                                bool HasValue = false;
+                                foreach (DataColumn c in dt.Columns)
+                                {
+                                    string value = row[c].ToString();
+                                    if (!String.IsNullOrWhiteSpace(value) || !String.IsNullOrEmpty(value))
+                                    {
+                                        HasValue = true;
+                                        break;
+                                    }
+                                }
+                                if (HasValue == false)
+                                {
+                                    deleteRows.Add(row);
+                                }
+                            }
+                            foreach (DataRow row in deleteRows)
+                            {
+                                dt.Rows.Remove(row);
+                            }
+
                         }
                     }
-                    foreach (DataRow row in deleteRows)
-                    {
-                        dt.Rows.Remove(row);
-                    }
-                    
                 }
+            }
+            else
+            {
+                throw new Exception("File is not an Excel file");
             }
         }
 
@@ -143,8 +142,6 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                 return schemaTable;
             }
         }
-
-
 
         internal void Dispose()
         {

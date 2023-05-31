@@ -18,6 +18,9 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
     [AddInName("Dynamicweb.DataIntegration.Providers.Provider"), AddInLabel("Excel Provider"), AddInDescription("Excel Provider"), AddInIgnore(false)]
     public class ExcelProvider : BaseProvider, ISource, IDestination, IDropDownOptions
     {
+        internal static string GetOLEDB12ConnectionString(string fileName) => $"Provider=Microsoft.ACE.OLEDB.12.0;Data Source={fileName};Extended Properties=\"Excel 12.0;HDR=Yes;IMEX=1\"";
+        internal static string GetOLEDB4ConnectionString(string fileName) => $"Provider=Microsoft.Jet.OLEDB.4.0;Data Source={fileName};Extended Properties=\"Excel 8.0;HDR=Yes;IMEX=1\"";
+
         private const string ExcelExtension = ".xlsx";
         //path should point to a folder - if it doesn't, write will fail.
 
@@ -96,23 +99,34 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                 currentPath = workingDirectory.CombinePaths(_fileName);
             }
 
-            Dictionary<string, ExcelReader> excelReaders = new Dictionary<string, ExcelReader>();
-
-            if (File.Exists(GetSourceFilePath()))
+            var sourceFilePath = GetSourceFilePath();
+            if (File.Exists(sourceFilePath))
             {
-                if (currentPath.Contains("xls") || currentPath.Contains("xlsx"))
+                try
                 {
-                    excelReaders.Add(GetSourceFilePath(), new ExcelReader(GetSourceFilePath()));
+                    if (currentPath.EndsWith(".xls", StringComparison.OrdinalIgnoreCase) ||
+                        currentPath.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) ||
+                        currentPath.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase))
+                    {
+                        Dictionary<string, ExcelReader> excelReaders = new Dictionary<string, ExcelReader>
+                        {
+                            { sourceFilePath, new ExcelReader(sourceFilePath) }
+                        };
+                        GetSchemaForTableFromFile(result, excelReaders);
+                    }
+                    else
+                    {
+                        Logger?.Error("File is not an Excel file");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger?.Error(string.Format("GetOriginalSourceSchema error reading file: {0} message: {1} stack: {2}", sourceFilePath, ex.Message, ex.StackTrace));
                 }
             }
-
-            try
+            else
             {
-                GetSchemaForTableFromFile(result, excelReaders);
-            }
-            finally
-            {
-                excelReaders = null;
+                Logger?.Error($"Source file {sourceFilePath} does not exist");
             }
 
             return result;
@@ -187,7 +201,8 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
             }
             else
             {
-                throw new Exception("The file is not a Excel file");
+                Logger?.Error("The file is not a Excel file");
+                return null;
             }
         }
 
@@ -210,7 +225,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
             {
                 if (destinationWriter == null)
                 {
-                    if (!String.IsNullOrEmpty(WorkingDirectory))
+                    if (!string.IsNullOrEmpty(WorkingDirectory))
                     {
                         destinationWriter = new ExcelDestinationWriter(workingDirectory.CombinePaths(_destinationFolder), $"{Path.GetFileNameWithoutExtension(DestinationFile)}{ExcelExtension}", job.Mappings, Logger);
                     }
@@ -360,7 +375,9 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
 
         public override string ValidateSourceSettings()
         {
-            if (_fileName.EndsWith(".xlsx") || _fileName.EndsWith(".xls") || _fileName.EndsWith(".xlsm"))
+            if (_fileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) ||
+                _fileName.EndsWith(".xls", StringComparison.OrdinalIgnoreCase) ||
+                _fileName.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase))
             {
                 string filename = GetSourceFilePath();
                 if (!File.Exists(filename))
@@ -368,11 +385,11 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                     return "Excel file \"" + SourceFile + "\" does not exist. WorkingDirectory - " + WorkingDirectory;
                 }
 
-                string strConn = "Provider=Microsoft.ACE.OLEDB.12.0;Data Source=" + filename + ";Extended Properties=\"Excel 12.0;HDR=Yes;IMEX=1\"";
+                string strConn = GetOLEDB12ConnectionString(filename);
 
                 if (filename.EndsWith(".xls"))
                 {
-                    strConn = "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" + filename + ";Extended Properties=\"Excel 8.0;HDR=Yes;IMEX=1\"";
+                    strConn = GetOLEDB4ConnectionString(filename);
                 }
 
                 using (OleDbConnection conn = new OleDbConnection(strConn))
@@ -383,7 +400,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                     }
                     catch (Exception ex)
                     {
-                        throw ex;
+                        return string.Format("Could not open source file: {0} message: {1} stack: {2}", filename, ex.Message, ex.StackTrace);
                     }
 
                     DataTable schemaTable = conn.GetOleDbSchemaTable(OleDbSchemaGuid.Tables, new object[] { null, null, null, "TABLE" });
@@ -406,6 +423,4 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
             return null;
         }
     }
-
-
 }

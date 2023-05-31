@@ -1,10 +1,8 @@
-﻿using Dynamicweb.Core;
-using Dynamicweb.DataIntegration.Integration;
+﻿using Dynamicweb.DataIntegration.Integration;
 using Dynamicweb.DataIntegration.Integration.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Linq;
 
 namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
 {
@@ -66,66 +64,69 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
 
         public bool IsDone()
         {
-            Dictionary<string, object> result = new Dictionary<string, object>();
-            DataTable dt = null;
-            foreach (DataTable table in Reader.ExcelSet.Tables)
+            if (Reader?.ExcelSet?.Tables != null && Reader.ExcelSet.Tables.Count > 0)
             {
-                if (table.TableName.Equals(mapping.SourceTable.Name))
+                Dictionary<string, object> result = new Dictionary<string, object>();
+                DataTable dt = null;
+                foreach (DataTable table in Reader.ExcelSet.Tables)
                 {
-                    dt = table;
-                    break;
-                }
-            }
-            if (dt.Rows.Count == rowsCount)
-            {
-                rowsCount = 0;
-                return true;
-            }
-            if (dt != null)
-            {
-                DataRow dr = dt.Rows[rowsCount];
-                
-                foreach (Column column in mapping.GetSourceColumns(true, true))
-                {
-                    if (!result.ContainsKey(column.Name) && dt.Columns.Contains(column.Name))
+                    if (table.TableName.Equals(mapping.SourceTable.Name))
                     {
-                        if (dr[column.Name] == null)
+                        dt = table;
+                        break;
+                    }
+                }
+                if (dt.Rows.Count == rowsCount)
+                {
+                    rowsCount = 0;
+                    return true;
+                }
+                if (dt != null)
+                {
+                    DataRow dr = dt.Rows[rowsCount];
+
+                    foreach (Column column in mapping.GetSourceColumns(true, true))
+                    {
+                        if (!result.ContainsKey(column.Name) && dt.Columns.Contains(column.Name))
                         {
-                            result.Add(column.Name, DBNull.Value);
-                        }
-                        else
-                        {
-                            string value = dr[column.Name].ToString();
-                            if (NumericTypes.Contains(column.Type))
+                            if (dr[column.Name] == null)
                             {
-                                if (string.IsNullOrEmpty(value))
-                                {
-                                    result.Add(column.Name, 0);
-                                }
-                                else
-                                {
-                                    result.Add(column.Name, dr[column.Name]);
-                                }
+                                result.Add(column.Name, DBNull.Value);
                             }
                             else
                             {
-                                result.Add(column.Name, value);
+                                string value = dr[column.Name].ToString();
+                                if (NumericTypes.Contains(column.Type))
+                                {
+                                    if (string.IsNullOrEmpty(value))
+                                    {
+                                        result.Add(column.Name, 0);
+                                    }
+                                    else
+                                    {
+                                        result.Add(column.Name, dr[column.Name]);
+                                    }
+                                }
+                                else
+                                {
+                                    result.Add(column.Name, value);
+                                }
                             }
                         }
                     }
+                    rowsCount++;
                 }
-                //check columns from conditions
-                rowsCount++;
+
+                nextResult = result;
+
+                if (RowMatchesConditions())
+                {
+                    return false;
+                }
+
+                return IsDone();
             }
-
-            nextResult = result;
-
-            if (RowMatchesConditions())
-            {
-                return false;
-            }
-
-            return IsDone();
+            return true;
         }
 
         private bool RowMatchesConditions()
@@ -140,23 +141,6 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
             return true;
         }
 
-        private List<Column> GetColumnsFromMappingConditions(IEnumerable<string> columnsToSkip)
-        {
-            List<Column> ret = new List<Column>();
-            if (mapping.Conditionals.Count > 0)
-            {
-                foreach (MappingConditional mc in mapping.Conditionals.Where(mc => mc != null && mc.SourceColumn != null).GroupBy(g => new { g.SourceColumn.Name }).Select(g => g.First()))
-                {
-                    if (columnsToSkip == null || !columnsToSkip.Any(cts => string.Compare(cts, mc.SourceColumn.Name, true) == 0))
-                    {
-                        ret.Add(mc.SourceColumn);
-                    }
-                }
-            }
-            return ret;
-        }
-
-        
         public Dictionary<string, object> GetNext()
         {
             return nextResult;

@@ -331,13 +331,22 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                         schema = new Schema(node);
                         break;
                     case "SourcePath":
-                        _fileName = node.FirstChild.Value;
+                        if (node.HasChildNodes)
+                        {
+                            _fileName = node.FirstChild.Value;
+                        }
                         break;
                     case "DestinationFile":
-                        DestinationFile = node.FirstChild.Value;
+                        if (node.HasChildNodes)
+                        {
+                            DestinationFile = node.FirstChild.Value;
+                        }
                         break;
                     case "DestinationFolder":
-                        DestinationFolder = node.FirstChild.Value;
+                        if (node.HasChildNodes)
+                        {
+                            DestinationFolder = node.FirstChild.Value;
+                        }
                         break;
 
                 }

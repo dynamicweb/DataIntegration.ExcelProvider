@@ -29,11 +29,11 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
         {
             get
             {
-                return _fileName;
+                return _sourceFileName;
             }
             set
             {
-                _fileName = value;
+                _sourceFileName = value;
             }
         }
 
@@ -42,14 +42,15 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
         {
             get
             {
-                return Path.GetFileNameWithoutExtension(_fileName);
+                return Path.GetFileNameWithoutExtension(_destinationFileName);
             }
             set
             {
-                _fileName = Path.GetFileNameWithoutExtension(value);
+                _destinationFileName = Path.GetFileNameWithoutExtension(value);
             }
         }
-        private string _fileName;
+        private string _sourceFileName;
+        private string _destinationFileName;
         private string _destinationFolder = "/Files";
 
         [AddInParameter("Destination folder"), AddInParameterEditor(typeof(FolderSelectEditor), "folder=/Files/"), AddInParameterGroup("Destination")]
@@ -93,10 +94,10 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
         {
             Schema result = new Schema();
 
-            string currentPath = _fileName;
+            string currentPath = SourceFile;
             if (!string.IsNullOrEmpty(workingDirectory))
             {
-                currentPath = workingDirectory.CombinePaths(_fileName);
+                currentPath = workingDirectory.CombinePaths(SourceFile);
             }
 
             var sourceFilePath = GetSourceFilePath();
@@ -146,13 +147,13 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
         {
             string srcFilePath = string.Empty;
 
-            if (this._fileName.StartsWith(".."))
+            if (SourceFile.StartsWith(".."))
             {
-                srcFilePath = (this.WorkingDirectory.CombinePaths(this._fileName.TrimStart(new char[] { '.' })).Replace("\\", "/"));
+                srcFilePath = (this.WorkingDirectory.CombinePaths(SourceFile.TrimStart(new char[] { '.' })).Replace("\\", "/"));
             }
             else
             {
-                srcFilePath = this.WorkingDirectory.CombinePaths(FilesFolderName, this._fileName).Replace("\\", "/");
+                srcFilePath = this.WorkingDirectory.CombinePaths(FilesFolderName, SourceFile).Replace("\\", "/");
             }
             return srcFilePath;
         }
@@ -160,7 +161,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
         public override void UpdateSourceSettings(ISource source)
         {
             ExcelProvider newProvider = (ExcelProvider)source;
-            _fileName = newProvider._fileName;
+            SourceFile = newProvider.SourceFile;
             _destinationFolder = newProvider._destinationFolder;
         }
 
@@ -171,7 +172,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
             XElement root = new XElement("Parameters");
             document.Add(root);
 
-            root.Add(CreateParameterNode(GetType(), "Source file", _fileName));
+            root.Add(CreateParameterNode(GetType(), "Source file", SourceFile));
             root.Add(CreateParameterNode(GetType(), "Destination file", DestinationFile));
             root.Add(CreateParameterNode(GetType(), "Destination folder", DestinationFolder));
 
@@ -180,7 +181,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
 
         public new virtual void SaveAsXml(XmlTextWriter xmlTextWriter)
         {
-            xmlTextWriter.WriteElementString("SourcePath", _fileName);
+            xmlTextWriter.WriteElementString("SourcePath", SourceFile);
             xmlTextWriter.WriteElementString("DestinationFile", DestinationFile);
             xmlTextWriter.WriteElementString("DestinationFolder", DestinationFolder);
             GetSchema().SaveAsXml(xmlTextWriter);
@@ -188,7 +189,9 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
 
         public new ISourceReader GetReader(Mapping mapping)
         {
-            if (_fileName.EndsWith(".xlsx") || _fileName.EndsWith(".xls") || _fileName.EndsWith(".xlsm"))
+            if (SourceFile.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) ||
+                SourceFile.EndsWith(".xls", StringComparison.OrdinalIgnoreCase) ||
+                SourceFile.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase))
             {
                 if (!string.IsNullOrEmpty(WorkingDirectory))
                 {
@@ -196,7 +199,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                 }
                 else
                 {
-                    return new ExcelSourceReader(_fileName, mapping, this);
+                    return new ExcelSourceReader(SourceFile, mapping, this);
                 }
             }
             else
@@ -231,7 +234,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                     }
                     else
                     {
-                        destinationWriter = new ExcelDestinationWriter($"{Path.GetFileNameWithoutExtension(_fileName)}{ExcelExtension}", "", job.Mappings, Logger);
+                        destinationWriter = new ExcelDestinationWriter($"{Path.GetFileNameWithoutExtension(SourceFile)}{ExcelExtension}", "", job.Mappings, Logger);
                     }
                 }
                 foreach (var mapping in destinationWriter.Mappings)
@@ -333,7 +336,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                     case "SourcePath":
                         if (node.HasChildNodes)
                         {
-                            _fileName = node.FirstChild.Value;
+                            SourceFile = node.FirstChild.Value;
                         }
                         break;
                     case "DestinationFile":
@@ -360,7 +363,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
 
         public ExcelProvider(string path)
         {
-            _fileName = path;
+            SourceFile = path;
         }
 
         public override void OverwriteSourceSchemaToOriginal()
@@ -374,8 +377,8 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
 
         public override string ValidateDestinationSettings()
         {
-            string extension = Path.GetFileNameWithoutExtension(_fileName);
-            if (!string.Equals(extension, _fileName, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(extension) && !(extension.EndsWith(".xlsx") || extension.EndsWith(".xls")))
+            string extension = Path.GetFileNameWithoutExtension(DestinationFile);
+            if (!string.Equals(extension, DestinationFile, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(extension) && !(extension.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) || extension.EndsWith(".xls", StringComparison.OrdinalIgnoreCase)))
             {
                 return "File has to end with .xlsx or .xls";
             }
@@ -384,9 +387,9 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
 
         public override string ValidateSourceSettings()
         {
-            if (_fileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) ||
-                _fileName.EndsWith(".xls", StringComparison.OrdinalIgnoreCase) ||
-                _fileName.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase))
+            if (SourceFile.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) ||
+                SourceFile.EndsWith(".xls", StringComparison.OrdinalIgnoreCase) ||
+                SourceFile.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase))
             {
                 string filename = GetSourceFilePath();
                 if (!File.Exists(filename))

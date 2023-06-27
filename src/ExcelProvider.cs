@@ -147,13 +147,16 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
         {
             string srcFilePath = string.Empty;
 
-            if (SourceFile.StartsWith(".."))
+            if (!string.IsNullOrEmpty(SourceFile))
             {
-                srcFilePath = (this.WorkingDirectory.CombinePaths(SourceFile.TrimStart(new char[] { '.' })).Replace("\\", "/"));
-            }
-            else
-            {
-                srcFilePath = this.WorkingDirectory.CombinePaths(FilesFolderName, SourceFile).Replace("\\", "/");
+                if (SourceFile.StartsWith(".."))
+                {
+                    srcFilePath = (this.WorkingDirectory.CombinePaths(SourceFile.TrimStart(new char[] { '.' })).Replace("\\", "/"));
+                }
+                else
+                {
+                    srcFilePath = this.WorkingDirectory.CombinePaths(FilesFolderName, SourceFile).Replace("\\", "/");
+                }
             }
             return srcFilePath;
         }

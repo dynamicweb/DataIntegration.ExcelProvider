@@ -187,6 +187,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
             xmlTextWriter.WriteElementString("SourcePath", SourceFile);
             xmlTextWriter.WriteElementString("DestinationFile", DestinationFile);
             xmlTextWriter.WriteElementString("DestinationFolder", DestinationFolder);
+            xmlTextWriter.WriteElementString("WorkingDirectory", WorkingDirectory);
             GetSchema().SaveAsXml(xmlTextWriter);
         }
 
@@ -352,6 +353,12 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                         if (node.HasChildNodes)
                         {
                             DestinationFolder = node.FirstChild.Value;
+                        }
+                        break;
+                    case "WorkingDirectory":
+                        if(node.HasChildNodes)
+                        {
+                            WorkingDirectory = node.FirstChild.Value;
                         }
                         break;
 

@@ -16,7 +16,7 @@ using System.Xml.Linq;
 namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
 {
     [AddInName("Dynamicweb.DataIntegration.Providers.Provider"), AddInLabel("Excel Provider"), AddInDescription("Excel Provider"), AddInIgnore(false)]
-    public class ExcelProvider : BaseProvider, ISource, IDestination, IDropDownOptions
+    public class ExcelProvider : BaseProvider, ISource, IDestination, IParameterOptions
     {
         internal static string GetOLEDB12ConnectionString(string fileName) => $"Provider=Microsoft.ACE.OLEDB.12.0;Data Source={fileName};Extended Properties=\"Excel 12.0;HDR=Yes;IMEX=1\"";
         internal static string GetOLEDB4ConnectionString(string fileName) => $"Provider=Microsoft.Jet.OLEDB.4.0;Data Source={fileName};Extended Properties=\"Excel 8.0;HDR=Yes;IMEX=1\"";
@@ -83,12 +83,6 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                 return true;
             }
         }
-
-        public Hashtable GetOptions(string name)
-        {
-            return new Hashtable();
-        }
-
 
         public override Schema GetOriginalSourceSchema()
         {
@@ -444,5 +438,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
             }
             return null;
         }
+
+        public IEnumerable<ParameterOption> GetParameterOptions(string parameterName) => new List<ParameterOption>();
     }
 }

@@ -2,25 +2,27 @@
 using Dynamicweb.CoreUI.Data.Validation;
 using Dynamicweb.Extensibility;
 using Dynamicweb.Extensibility.AddIns;
-using Dynamicweb.Products.UI.Models;
 using System;
 using System.IO;
 using System.Linq;
 
-namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.ExportExcel
+namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.ExportExcel.Commands
 {
-    public sealed class ExportDataToExcelCommand : CommandBase<ProductListModel>
+    public abstract class ExportDataToExcelCommand<TModel> : CommandBase<DataListViewModel<TModel>> where TModel : DataViewModelBase
     {
         [Required]
         public string QueryType { get; set; } = "";
 
         public string Columns { get; set; }
 
+        [Required]
+        public string FileName { get; set; }
+
         public override CommandResult Handle()
         {
             var query = GetAllRowsQuery();
             var data = query?.GetData() ?? Model?.Data;
-            if (data is null || data is not ProductListModel productsData)
+            if (data is null)
             {
                 return new CommandResult()
                 {
@@ -29,8 +31,8 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.ExportExcel
                 };
             }
 
-            var provider = new ExportDataToExcelProvider();
-            provider.GenerateExcel(productsData, Columns?.Split(",", StringSplitOptions.RemoveEmptyEntries));
+            var provider = new ExportDataToExcelProvider(FileName);
+            provider.GenerateExcel(data, Columns?.Split(",", StringSplitOptions.RemoveEmptyEntries));
 
             return new CommandResult()
             {
@@ -63,7 +65,17 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.ExportExcel
                         var property = queryType.GetProperty(propertyName);
                         if (property is not null)
                         {
-                            var value = Convert.ChangeType(Context.Current.Request.QueryString[key], property.PropertyType);
+                            object value;
+                            var propertyType = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
+
+                            if (propertyType is not null && propertyType.IsEnum)
+                            {
+                                Enum.TryParse(propertyType, Context.Current.Request.QueryString[key].ToString(), true, out value);
+                            }
+                            else
+                            {
+                                value = Convert.ChangeType(Context.Current.Request.QueryString[key], propertyType);
+                            }
                             if (value is not null)
                             {
                                 TypeHelper.TrySetPropertyValue(query, propertyName, value);

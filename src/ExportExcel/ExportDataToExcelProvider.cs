@@ -1,7 +1,8 @@
 ﻿using Dynamicweb.Core;
+using Dynamicweb.CoreUI.Data;
 using Dynamicweb.Extensibility;
-using Dynamicweb.Products.UI.Models;
 using OfficeOpenXml;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -10,12 +11,27 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.ExportExcel
 {
     internal class ExportDataToExcelProvider
     {
-        private readonly string FileName = "Products.xlsx";
-
+        private readonly string FileName;
         internal string DestinationFilePath => SystemInformation.MapPath($"/Files/System/Log/{FileName}");
 
-        internal void GenerateExcel(ProductListModel model, IEnumerable<string> fields)
+        public ExportDataToExcelProvider(string fileName) 
         {
+            FileName = fileName;
+        }        
+
+        internal void GenerateExcel(object data, IEnumerable<string> fields)
+        {
+            if (data is null)
+                return;
+
+            IEnumerable<object> rows = Enumerable.Empty<object>();
+
+            var enumrableData = TypeHelper.GetPropertyValue(data, nameof(DataListViewModel<object>.Data));
+            if (enumrableData is not null && enumrableData is IEnumerable enumerable)
+            {
+                rows = enumerable.Cast<object>();                
+            }
+
             string filePath = DestinationFilePath;
 
             using (ExcelPackage package = GetExcelPackage(filePath))
@@ -24,15 +40,15 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.ExportExcel
 
                 if (fields is null || !fields.Any())
                 {
-                    fields = model.Data.FirstOrDefault().GetType().GetProperties().Select(f => f.Name);
+                    fields = rows.FirstOrDefault().GetType().GetProperties().Select(f => f.Name);
                 }
 
                 AddHeader(worksheet, fields);
 
                 int rowIndex = 2;
-                foreach (var row in model.Data)
+                foreach (var row in rows)
                 {
-                    AddProductRow(worksheet, ref rowIndex, row, fields);
+                    AddDataRow(worksheet, ref rowIndex, row, fields);
                     rowIndex++;
                 }
 
@@ -62,7 +78,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.ExportExcel
             return worksheet;
         }
 
-        protected ExcelRange AddCell(ExcelWorksheet worksheet, string text, int row, int column)
+        private ExcelRange AddCell(ExcelWorksheet worksheet, string text, int row, int column)
         {
             ExcelRange cell = worksheet.Cells[row, column];
             cell.Value = text;
@@ -87,18 +103,18 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.ExportExcel
             }
         }
 
-        private void AddProductRow(ExcelWorksheet worksheet, ref int rowIndex, ProductContainerModel product, IEnumerable<string> fields)
+        private void AddDataRow(ExcelWorksheet worksheet, ref int rowIndex, object dataRow, IEnumerable<string> fields)
         {
             int lastColumnIndex = 1;
             foreach (var field in fields)
             {
-                AddCell(worksheet, Converter.ToString(TypeHelper.GetPropertyValue(product, field)), rowIndex, lastColumnIndex++);
+                AddCell(worksheet, Converter.ToString(TypeHelper.GetPropertyValue(dataRow, field)), rowIndex, lastColumnIndex++);
             }
             worksheet.Row(rowIndex).Height = 15;
         }
 
         private void SetColumnsWidth(ExcelWorksheet worksheet)
-        {            
+        {
             worksheet.Cells.AutoFitColumns(10);
         }
     }

@@ -5,29 +5,34 @@ using Dynamicweb.CoreUI.Data;
 using Dynamicweb.CoreUI.Icons;
 using Dynamicweb.CoreUI.Layout;
 using Dynamicweb.CoreUI.Screens;
-using Dynamicweb.Products.UI.Models;
-using Dynamicweb.Products.UI.Screens;
+using Dynamicweb.DataIntegration.Providers.ExcelProvider.ExportExcel.Commands;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.ExportExcel
+namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.ExportExcel.Injectors
 {
-    public class ProductsListScreenInjector : ListScreenInjector<ProductListScreen, ProductListModel, ProductContainerModel>
+    public abstract class ExportToExcelScreenInjector<TScreen, TScreenModel, TRowModel> : ListScreenInjector<TScreen, TScreenModel, TRowModel> where TScreen : ListScreenBase<TScreenModel, TRowModel> where TScreenModel : DataListViewModel<TRowModel> where TRowModel : DataViewModelBase
     {
-        private DataQueryBase _query;
+        protected DataQueryBase Query
+        {
+            get; private set;
+        }
+
+        protected ExportDataToExcelCommand<TRowModel> Command;
+        protected abstract ExportDataToExcelCommand<TRowModel> GetCommand();
+
         private bool _askConfirmation;
         private bool _dataAvailable;
-        private ExportDataToExcelCommand _command;
         private readonly int RowsCountWarningLimit = 5000;
 
-        public override void OnBefore(ProductListScreen screen)
+        public override void OnBefore(TScreen screen)
         {
-            _query = screen.Query;
+            Query = screen.Query;
             _askConfirmation = screen?.Model?.TotalCount > RowsCountWarningLimit;
             _dataAvailable = _askConfirmation ? true : screen?.Model is not null && screen?.Model.TotalCount > 0;
         }
 
-        public override void OnAfter(ProductListScreen screen, UiComponentBase content)
+        public override void OnAfter(TScreen screen, UiComponentBase content)
         {
             SetColumnsForExport(content);
         }
@@ -41,12 +46,13 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.ExportExcel
                 Icon = Icon.Export,
             };
 
-            _command = new ExportDataToExcelCommand() { QueryType = _query.GetType().FullName };
+            Command = GetCommand();
+            Command.QueryType = Query.GetType().FullName;
 
-            node.NodeAction = DownloadFileAction.Using(_command).With(_query);
+            node.NodeAction = DownloadFileAction.Using(Command).With(Query);
             if (_askConfirmation)
             {
-                node.NodeAction = ConfirmAction.For(node.NodeAction, "", "You are exporting more than 5.000 records, it could take a while. Are you sure you want to continue?");
+                node.NodeAction = ConfirmAction.For(node.NodeAction, "", $"You are exporting more than {RowsCountWarningLimit} records, it could take a while. Are you sure you want to continue?");
             }
 
             return new List<ActionGroup>()
@@ -61,7 +67,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.ExportExcel
 
         private void SetColumnsForExport(UiComponentBase content)
         {
-            if (_command is not null && content is not null && content is ScreenLayout layout && layout?.Root is not null
+            if (Command is not null && content is not null && content is ScreenLayout layout && layout?.Root is not null
                 && layout?.Root is Section section && section?.Groups is not null)
             {
                 foreach (var group in section.Groups)
@@ -69,7 +75,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.ExportExcel
                     var listComponent = group.Components?.FirstOrDefault(c => c is not null && c is CoreUI.Lists.List);
                     if (listComponent is not null && listComponent is CoreUI.Lists.List list && list?.Columns is not null)
                     {
-                        _command.Columns = string.Join(",", list.Columns.Select(c => c.Value.Name));
+                        Command.Columns = string.Join(",", list.Columns.Select(c => c.Value.Name));
                         break;
                     }
                 }

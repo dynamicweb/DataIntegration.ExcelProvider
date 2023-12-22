@@ -156,7 +156,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                 : fieldSystemName;
         }
 
-        private string GetCustomFieldValue(object dataRow, string field) => GetCustomFieldValue("CustomFields", dataRow, FieldsHelper.GetFieldSystemName(field));        
+        private string GetCustomFieldValue(object dataRow, string field) => GetCustomFieldValue("CustomFields", dataRow, FieldsHelper.GetFieldSystemName(field));
 
         private string GetCategoryFieldValue(object dataRow, string fieldSystemName) => GetCustomFieldValue("CategoryFields", dataRow, fieldSystemName);
 
@@ -214,9 +214,9 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
             else if (CategoryFieldTryParseUniqueId(fieldSystemName, out var categoryId, out var fieldId))
             {
                 var categoryField = Ecommerce.Services.ProductCategoryFields.GetFieldById(categoryId, fieldId);
-                if (categoryField != null)
+                if (categoryField != null && categoryField.Category != null)
                 {
-                    result = categoryField.GetLabel(language.LanguageId);
+                    result = $"{categoryField.Category.GetName(language.LanguageId)} - {categoryField.GetLabel(language.LanguageId)}";
                 }
                 if (string.IsNullOrEmpty(result))
                 {

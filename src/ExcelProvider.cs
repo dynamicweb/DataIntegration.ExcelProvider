@@ -5,7 +5,6 @@ using Dynamicweb.Extensibility.AddIns;
 using Dynamicweb.Extensibility.Editors;
 using Dynamicweb.Logging;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.OleDb;
@@ -255,7 +254,10 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
             catch (Exception ex)
             {
                 string msg = ex.Message;
-                LogManager.System.GetLogger(LogCategory.Application, "Dataintegration").Error($"{GetType().Name} error: {ex.Message} Stack: {ex.StackTrace}", ex);
+                string stackTrace = ex.StackTrace;
+
+                Logger?.Error($"Error: {msg.Replace(System.Environment.NewLine, " ")} Stack: {stackTrace.Replace(System.Environment.NewLine, " ")}", ex);
+                LogManager.System.GetLogger(LogCategory.Application, "Dataintegration").Error($"{GetType().Name} error: {msg} Stack: {stackTrace}", ex);
                 if (sourceRow != null)
                 {
                     msg += GetFailedSourceRowMessage(sourceRow);
@@ -350,7 +352,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                         }
                         break;
                     case "WorkingDirectory":
-                        if(node.HasChildNodes)
+                        if (node.HasChildNodes)
                         {
                             WorkingDirectory = node.FirstChild.Value;
                         }

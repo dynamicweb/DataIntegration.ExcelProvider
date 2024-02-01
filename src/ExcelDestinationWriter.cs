@@ -36,7 +36,17 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
         private DataSet setForExcel;
         private DataTable tableForExcel;
         private readonly string destinationPath;
-        public Mapping currentMapping { get; set; }
+        private Mapping _currentMapping;
+        private ColumnMappingCollection _currentColumnMappings;
+        public Mapping currentMapping
+        {
+            get => _currentMapping;
+            set
+            {
+                _currentMapping = value;
+                _currentColumnMappings = value.GetColumnMappings();
+            }
+        }
 
         public virtual Mapping Mapping
         {
@@ -57,7 +67,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
 
             DataRow r = tableForExcel.NewRow();
 
-            foreach (ColumnMapping columnMapping in currentMapping.GetColumnMappings().Where(cm => cm.Active))
+            foreach (ColumnMapping columnMapping in _currentColumnMappings.Where(cm => cm.Active))
             {
                 if (columnMapping.ScriptType != ScriptType.None)
                 {
@@ -70,7 +80,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                         case ScriptType.Prepend:
                             evaluatedValue = columnMapping.ScriptValue + GetValue(columnMapping, row);
                             break;
-                        case ScriptType.Constant:                        
+                        case ScriptType.Constant:
                             evaluatedValue = columnMapping.GetScriptValue();
                             break;
                         case ScriptType.NewGuid:
@@ -118,7 +128,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
         private DataTable GetTableForExcel()
         {
             var table = new DataTable(currentMapping.DestinationTable.Name);
-            foreach (ColumnMapping c in currentMapping.GetColumnMappings())
+            foreach (ColumnMapping c in _currentColumnMappings)
             {
                 if (c.Active)
                 {

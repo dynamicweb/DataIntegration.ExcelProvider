@@ -62,7 +62,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
             ExcelSet = ds;
         }
 
-        public void Dispose()
+        internal void Dispose()
         {
 
         }

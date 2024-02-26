@@ -1,5 +1,6 @@
 ﻿using OfficeOpenXml;
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.IO;
 
@@ -38,23 +39,34 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
             var ds = new DataSet();
             foreach (var worksheet in package.Workbook.Worksheets)
             {
+                var emptyRows = new List<DataRow>();
                 var dataTable = new DataTable(worksheet.Name);
-                bool hasHeader = true;
+                var hasHeader = true;
                 foreach (var firstRowCell in worksheet.Cells[1, 1, 1, worksheet.Dimension.End.Column])
                 {
                     dataTable.Columns.Add(hasHeader ? firstRowCell.Text : string.Format("Column {0}", firstRowCell.Start.Column));
                 }
 
                 var startRow = hasHeader ? 2 : 1;
-                for (int rowNum = startRow; rowNum <= worksheet.Dimension.End.Row; rowNum++)
+                for (var rowNum = startRow; rowNum <= worksheet.Dimension.End.Row; rowNum++)
                 {
+                    var hasValue = false;
                     var wsRow = worksheet.Cells[rowNum, 1, rowNum, worksheet.Dimension.End.Column];
-                    DataRow row = dataTable.Rows.Add();
+                    var row = dataTable.Rows.Add();
                     foreach (var cell in wsRow)
                     {
                         row[cell.Start.Column - 1] = cell.Text;
+
+                        if (!string.IsNullOrWhiteSpace(cell.Text))
+                            hasValue = true;
                     }
+
+                    if (!hasValue)
+                        emptyRows.Add(row);
                 }
+
+                foreach (var row in emptyRows)
+                    dataTable.Rows.Remove(row);
 
                 ds.Tables.Add(dataTable);
             }
@@ -64,7 +76,8 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
 
         public void Dispose()
         {
-
+            ExcelSet.Clear();
+            ExcelSet.Dispose();
         }
     }
 }

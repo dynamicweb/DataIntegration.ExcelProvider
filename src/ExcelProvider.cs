@@ -4,10 +4,10 @@ using Dynamicweb.DataIntegration.Integration.Interfaces;
 using Dynamicweb.Extensibility.AddIns;
 using Dynamicweb.Extensibility.Editors;
 using Dynamicweb.Logging;
+using OfficeOpenXml;
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.OleDb;
 using System.IO;
 using System.Xml;
 using System.Xml.Linq;
@@ -17,24 +17,11 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
     [AddInName("Dynamicweb.DataIntegration.Providers.Provider"), AddInLabel("Excel Provider"), AddInDescription("Excel Provider"), AddInIgnore(false)]
     public class ExcelProvider : BaseProvider, ISource, IDestination, IParameterOptions
     {
-        internal static string GetOLEDB12ConnectionString(string fileName) => $"Provider=Microsoft.ACE.OLEDB.12.0;Data Source={fileName};Extended Properties=\"Excel 12.0;HDR=Yes;IMEX=1\"";
-        internal static string GetOLEDB4ConnectionString(string fileName) => $"Provider=Microsoft.Jet.OLEDB.4.0;Data Source={fileName};Extended Properties=\"Excel 8.0;HDR=Yes;IMEX=1\"";
-
         private const string ExcelExtension = ".xlsx";
         //path should point to a folder - if it doesn't, write will fail.
 
         [AddInParameter("Source file"), AddInParameterEditor(typeof(FileManagerEditor), "folder=/Files/;required"), AddInParameterGroup("Source")]
-        public string SourceFile
-        {
-            get
-            {
-                return _sourceFileName;
-            }
-            set
-            {
-                _sourceFileName = value;
-            }
-        }
+        public string SourceFile { get; set; }
 
         [AddInParameter("Destination file"), AddInParameterEditor(typeof(TextParameterEditor), $"append={ExcelExtension};required"), AddInParameterGroup("Destination")]
         public string DestinationFile
@@ -48,22 +35,11 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                 _destinationFileName = Path.GetFileNameWithoutExtension(value);
             }
         }
-        private string _sourceFileName;
+
         private string _destinationFileName;
-        private string _destinationFolder = "/Files";
 
         [AddInParameter("Destination folder"), AddInParameterEditor(typeof(FolderSelectEditor), "folder=/Files/"), AddInParameterGroup("Destination")]
-        public string DestinationFolder
-        {
-            get
-            {
-                return _destinationFolder;
-            }
-            set
-            {
-                _destinationFolder = value;
-            }
-        }
+        public string DestinationFolder { get; set; } = "/Files";
 
         private Schema schema;
 
@@ -75,13 +51,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
             return GetSchema();
         }
 
-        public override bool SchemaIsEditable
-        {
-            get
-            {
-                return true;
-            }
-        }
+        public override bool SchemaIsEditable => true;
 
         public override Schema GetOriginalSourceSchema()
         {
@@ -158,7 +128,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
         {
             ExcelProvider newProvider = (ExcelProvider)source;
             SourceFile = newProvider.SourceFile;
-            _destinationFolder = newProvider._destinationFolder;
+            DestinationFolder = newProvider.DestinationFolder;
         }
 
         public override string Serialize()
@@ -227,7 +197,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                 {
                     if (!string.IsNullOrEmpty(WorkingDirectory))
                     {
-                        destinationWriter = new ExcelDestinationWriter(workingDirectory.CombinePaths(_destinationFolder), $"{Path.GetFileNameWithoutExtension(DestinationFile)}{ExcelExtension}", job.Mappings, Logger);
+                        destinationWriter = new ExcelDestinationWriter(workingDirectory.CombinePaths(DestinationFolder), $"{Path.GetFileNameWithoutExtension(DestinationFile)}{ExcelExtension}", job.Mappings, Logger);
                     }
                     else
                     {
@@ -400,38 +370,27 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                 string filename = GetSourceFilePath();
                 if (!File.Exists(filename))
                 {
-                    return "Excel file \"" + SourceFile + "\" does not exist. WorkingDirectory - " + WorkingDirectory;
+                    return $"Excel file \"{SourceFile}\" does not exist. WorkingDirectory - {WorkingDirectory}";
                 }
 
-                string strConn = GetOLEDB12ConnectionString(filename);
-
-                if (filename.EndsWith(".xls"))
+                try
                 {
-                    strConn = GetOLEDB4ConnectionString(filename);
-                }
-
-                using (OleDbConnection conn = new OleDbConnection(strConn))
-                {
-                    try
+                    using (var package = new ExcelPackage(new FileInfo(filename)))
                     {
-                        conn.Open();
-                    }
-                    catch (Exception ex)
-                    {
-                        return string.Format("Could not open source file: {0} message: {1} stack: {2}", filename, ex.Message, ex.StackTrace);
-                    }
-
-                    DataTable schemaTable = conn.GetOleDbSchemaTable(OleDbSchemaGuid.Tables, new object[] { null, null, null, "TABLE" });
-
-                    foreach (DataRow schemaRow in schemaTable.Rows)
-                    {
-                        string sheet = schemaRow["TABLE_NAME"].ToString();
-
-                        if (sheet.Contains(" "))
+                        foreach (var worksheet in package.Workbook.Worksheets)
                         {
-                            return sheet + " contains whitespaces";
+                            string sheetName = worksheet.Name;
+
+                            if (sheetName.Contains(' '))
+                            {
+                                return $"{sheetName} contains whitespaces";
+                            }
                         }
                     }
+                }
+                catch (Exception ex)
+                {
+                    return $"Could not open source file: {filename} message: {ex.Message} stack: {ex.StackTrace}";
                 }
             }
             else

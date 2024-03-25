@@ -34,6 +34,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
 
         private void LoadExcelFile()
         {
+            ExcelPackage.LicenseContext = LicenseContext.Commercial;
             var fileInfo = new FileInfo(Filename);
             using var package = new ExcelPackage(fileInfo);
             var ds = new DataSet();
@@ -42,9 +43,15 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                 var emptyRows = new List<DataRow>();
                 var dataTable = new DataTable(worksheet.Name);
                 var hasHeader = true;
+                int i = 0;
                 foreach (var firstRowCell in worksheet.Cells[1, 1, 1, worksheet.Dimension.End.Column])
                 {
-                    dataTable.Columns.Add(hasHeader ? firstRowCell.Text : string.Format("Column {0}", firstRowCell.Start.Column));
+                    var header = hasHeader ? firstRowCell.Text : string.Format("Column {0}", firstRowCell.Start.Column);
+                    if (!dataTable.Columns.Contains(header) && !string.IsNullOrWhiteSpace(header))
+                        dataTable.Columns.Add(header);
+                    else
+                        dataTable.Columns.Add(header + i);
+                    i++;
                 }
 
                 var startRow = hasHeader ? 2 : 1;
@@ -53,12 +60,14 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                     var hasValue = false;
                     var wsRow = worksheet.Cells[rowNum, 1, rowNum, worksheet.Dimension.End.Column];
                     var row = dataTable.Rows.Add();
+                    var c = 0;
                     foreach (var cell in wsRow)
                     {
-                        row[cell.Start.Column - 1] = cell.Text;
+                        row[c] = cell.Text;
 
                         if (!string.IsNullOrWhiteSpace(cell.Text))
                             hasValue = true;
+                        c++;
                     }
 
                     if (!hasValue)

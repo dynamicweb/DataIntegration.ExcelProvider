@@ -363,6 +363,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
 
         public override string ValidateSourceSettings()
         {
+            ExcelPackage.LicenseContext = LicenseContext.Commercial;
             if (SourceFile.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) ||
                 SourceFile.EndsWith(".xls", StringComparison.OrdinalIgnoreCase) ||
                 SourceFile.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase))

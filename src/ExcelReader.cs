@@ -59,15 +59,14 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                 {
                     var hasValue = false;
                     var wsRow = worksheet.Cells[rowNum, 1, rowNum, worksheet.Dimension.End.Column];
-                    var row = dataTable.Rows.Add();
-                    var c = 0;
-                    foreach (var cell in wsRow)
+                    var row = dataTable.Rows.Add();                    
+                    for(var colNum = 1; colNum <= worksheet.Dimension.End.Column; colNum++)
                     {
-                        row[c] = cell.Text;
+                        string cellText = wsRow[rowNum, colNum].Text;
+                        row[colNum - 1] = cellText;
 
-                        if (!string.IsNullOrWhiteSpace(cell.Text))
-                            hasValue = true;
-                        c++;
+                        if (!string.IsNullOrWhiteSpace(cellText))
+                            hasValue = true;                        
                     }
 
                     if (!hasValue)

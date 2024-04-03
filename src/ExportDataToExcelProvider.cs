@@ -16,6 +16,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
     {
         private FieldsHelper FieldsHelper = new FieldsHelper();
         private IEnumerable<ProductField> CustomFields = ProductField.GetProductFields();
+        private const string CommentsAuthor = "Dynamicweb";
 
         public ExportDataToExcelProvider()
         {
@@ -68,20 +69,26 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
 
         private ExcelWorksheet GetExcelWorksheet(ExcelPackage package, string title)
         {
-            ExcelWorksheet worksheet = package.Workbook.Worksheets.Add(title);
+            ExcelWorksheet worksheet = package.Workbook.Worksheets.Add(title);            
             return worksheet;
         }
 
         private ExcelRange AddCell(ExcelWorksheet worksheet, string text, int row, int column)
         {
             ExcelRange cell = worksheet.Cells[row, column];
-            cell.Value = text;
+            cell.Value = text;            
             return cell;
         }
 
-        private void AddHeaderCell(ExcelWorksheet worksheet, string text, int row, int column)
+        private void AddHeaderCell(ExcelWorksheet worksheet, string text, int row, int column, string fieldSystemName)
         {
-            AddCell(worksheet, text, row, column);
+            var cell = AddCell(worksheet, text, row, column);
+            if(!string.IsNullOrEmpty(fieldSystemName) && 
+                (fieldSystemName.StartsWith("CustomFields|", System.StringComparison.OrdinalIgnoreCase) ||
+                fieldSystemName.StartsWith("CategoryFields|", System.StringComparison.OrdinalIgnoreCase)))
+            {
+                cell.AddComment(fieldSystemName, CommentsAuthor);
+            }
         }
 
         private void AddHeader(ExcelWorksheet worksheet, IDictionary<string, string> fields)
@@ -99,7 +106,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                 {
                     caption = GetFieldCaption(field, defaultLanguage);
                 }
-                AddHeaderCell(worksheet, caption, firstRowIndex, lastColumnIndex++);
+                AddHeaderCell(worksheet, caption, firstRowIndex, lastColumnIndex++, field);
             }
         }
 

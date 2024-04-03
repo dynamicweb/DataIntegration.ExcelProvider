@@ -261,8 +261,13 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                             columnCount = dt.Columns.Count;
                         }
                         foreach (System.Data.DataColumn c in dt.Columns)
-                        {
-                            excelTable.AddColumn(new Column(c.ColumnName, c.DataType, excelTable));
+                        {                            
+                            Column column = new Column(c.ColumnName, c.DataType, excelTable);
+                            if(!string.IsNullOrEmpty(c.Caption) && !string.Equals(c.Caption, c.ColumnName, StringComparison.OrdinalIgnoreCase))
+                            {
+                                column.NameWithWhitespaceStripped = c.Caption;
+                            }                            
+                            excelTable.AddColumn(column);
                         }
 
                     }

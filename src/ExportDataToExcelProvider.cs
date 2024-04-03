@@ -80,11 +80,12 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
             return cell;
         }
 
-        private void AddHeaderCell(ExcelWorksheet worksheet, string text, int row, int column, string fieldSystemName)
+        private void AddHeaderCell(ExcelWorksheet worksheet, string caption, int row, int column, string fieldSystemName)
         {
-            var cell = AddCell(worksheet, text, row, column);
+            var cell = AddCell(worksheet, caption, row, column);
             if(!string.IsNullOrEmpty(fieldSystemName) && 
-                (fieldSystemName.StartsWith("CustomFields|", System.StringComparison.OrdinalIgnoreCase) ||
+                (!string.Equals(caption, fieldSystemName, System.StringComparison.OrdinalIgnoreCase) ||
+                fieldSystemName.StartsWith("CustomFields|", System.StringComparison.OrdinalIgnoreCase) ||
                 fieldSystemName.StartsWith("CategoryFields|", System.StringComparison.OrdinalIgnoreCase)))
             {
                 cell.AddComment(fieldSystemName, CommentsAuthor);

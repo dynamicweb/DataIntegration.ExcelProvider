@@ -137,7 +137,10 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
             if (value is not null && value.ToString()?.Split(",") is string[] options)
             {
                 var fieldOptions = Ecommerce.Services.FieldOptions.GetOptionsByFieldIdAndValues(systemName, options.ToHashSet());
-                return string.Join(",", fieldOptions.Select(fo => fo.Translations.Get(Ecommerce.Services.Languages.GetDefaultLanguageId()).Name));
+                if (fieldOptions.Any())
+                {
+                    return string.Join(",", fieldOptions.Select(fo => fo.Translations.Get(Ecommerce.Services.Languages.GetDefaultLanguageId()).Name));
+                }
             }
             return Converter.ToString(value);
         }

@@ -46,11 +46,22 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                 int i = 0;
                 foreach (var firstRowCell in worksheet.Cells[1, 1, 1, worksheet.Dimension.End.Column])
                 {
+                    DataColumn column;                    
                     var header = hasHeader ? firstRowCell.Text : string.Format("Column {0}", firstRowCell.Start.Column);
                     if (!dataTable.Columns.Contains(header) && !string.IsNullOrWhiteSpace(header))
-                        dataTable.Columns.Add(header);
+                    {
+                        column = dataTable.Columns.Add(header);
+                    }
                     else
-                        dataTable.Columns.Add(header + i);
+                    {
+                        column = dataTable.Columns.Add(header + i);
+                    }
+
+                    if (!string.IsNullOrEmpty(firstRowCell.Comment?.Text))
+                    {
+                        column.Caption = firstRowCell.Comment.Text;
+                    }
+
                     i++;
                 }
 

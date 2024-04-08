@@ -43,9 +43,10 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                 var emptyRows = new List<DataRow>();
                 var dataTable = new DataTable(worksheet.Name);
                 var hasHeader = true;
-                int i = 0;
-                foreach (var firstRowCell in worksheet.Cells[1, 1, 1, worksheet.Dimension.End.Column])
+                var firstRow = worksheet.Cells[1, 1, 1, worksheet.Dimension.End.Column];
+                for (var colNum = 1; colNum <= worksheet.Dimension.End.Column; colNum++)
                 {
+                    var firstRowCell = firstRow[1, colNum];
                     DataColumn column;                    
                     var header = hasHeader ? firstRowCell.Text : string.Format("Column {0}", firstRowCell.Start.Column);
                     if (!dataTable.Columns.Contains(header) && !string.IsNullOrWhiteSpace(header))
@@ -54,15 +55,13 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                     }
                     else
                     {
-                        column = dataTable.Columns.Add(header + i);
+                        column = dataTable.Columns.Add(header + colNum);
                     }
 
                     if (!string.IsNullOrEmpty(firstRowCell.Comment?.Text))
                     {
                         column.Caption = firstRowCell.Comment.Text;
                     }
-
-                    i++;
                 }
 
                 var startRow = hasHeader ? 2 : 1;

@@ -1,11 +1,13 @@
 ﻿using Dynamicweb.Core;
 using Dynamicweb.DataIntegration.Integration;
 using Dynamicweb.DataIntegration.Integration.Interfaces;
+using Dynamicweb.DataIntegration.ProviderHelpers;
 using Dynamicweb.Logging;
 using OfficeOpenXml;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 
@@ -60,6 +62,10 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
 
         public virtual void Write(Dictionary<string, object> row)
         {
+            //need to change "var cultureInfo = CultureInfo.CurrentCulture" into "columnMapping.Mapping.Job.Culture" inside
+            // foreach (ColumnMapping columnMapping in _currentColumnMappings.Where(cm => cm.Active)), once DW10 is released
+            var cultureInfo = CultureInfo.CurrentCulture;
+
             if (tableForExcel == null)
             {
                 tableForExcel = GetTableForExcel();
@@ -69,60 +75,45 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
 
             foreach (ColumnMapping columnMapping in _currentColumnMappings.Where(cm => cm.Active))
             {
-                if (columnMapping.ScriptType != ScriptType.None)
+                if (columnMapping.HasScriptWithValue)
                 {
-                    string evaluatedValue = null;
-                    switch (columnMapping.ScriptType)
+                    if (columnMapping.SourceColumn.Type == typeof(DateTime))
                     {
-                        case ScriptType.Append:
-                            evaluatedValue = GetValue(columnMapping, row) + columnMapping.ScriptValue;
-                            break;
-                        case ScriptType.Prepend:
-                            evaluatedValue = columnMapping.ScriptValue + GetValue(columnMapping, row);
-                            break;
-                        case ScriptType.Constant:
-                            evaluatedValue = columnMapping.GetScriptValue();
-                            break;
-                        case ScriptType.NewGuid:
-                            evaluatedValue = columnMapping.GetScriptValue();
-                            break;
+                        DateTime theDate = DateTime.Parse(columnMapping.GetScriptValue(), CultureInfo.InvariantCulture);
+                        r[columnMapping.DestinationColumn.Name] = theDate.ToString("dd-MM-yyyy HH:mm:ss:fff", cultureInfo);
                     }
-
-                    r[columnMapping.DestinationColumn.Name] = evaluatedValue;
-                }
-                else
-                {
-                    if (row[columnMapping.SourceColumn.Name] == DBNull.Value)
+                    else if (columnMapping.SourceColumn.Type == typeof(decimal) ||
+                        columnMapping.SourceColumn.Type == typeof(double) ||
+                        columnMapping.SourceColumn.Type == typeof(float))
                     {
-                        r[columnMapping.DestinationColumn.Name] = "NULL";
+                        r[columnMapping.DestinationColumn.Name] = ValueFormatter.GetFormattedValue(columnMapping.GetScriptValue(), cultureInfo, columnMapping.ScriptType, columnMapping.ScriptValue);
                     }
                     else
                     {
-                        string evaluatedValue = GetValue(columnMapping, row);
-                        if (!string.IsNullOrEmpty(evaluatedValue))
-                        {
-                            r[columnMapping.DestinationColumn.Name] = evaluatedValue;
-                        }
+                        r[columnMapping.DestinationColumn.Name] = columnMapping.GetScriptValue();
                     }
                 }
+                else if (row[columnMapping.SourceColumn.Name] == DBNull.Value)
+                {
+                    r[columnMapping.DestinationColumn.Name] = "NULL";
+                }
+                else if (columnMapping.SourceColumn.Type == typeof(DateTime))
+                {
+                    if (DateTime.TryParse(columnMapping.ConvertInputValueToOutputValue(row[columnMapping.SourceColumn.Name])?.ToString(), out var theDateTime))
+                    {
+                        r[columnMapping.DestinationColumn.Name] = theDateTime.ToString("dd-MM-yyyy HH:mm:ss:fff", cultureInfo);
+                    }
+                    else
+                    {
+                        r[columnMapping.DestinationColumn.Name] = DateTime.MinValue.ToString("dd-MM-yyyy HH:mm:ss:fff", CultureInfo.InvariantCulture);
+                    }
+                }
+                else
+                {
+                    r[columnMapping.DestinationColumn.Name] = string.Format(cultureInfo, "{0}", columnMapping.ConvertInputValueToOutputValue(row[columnMapping.SourceColumn.Name]));
+                }
             }
-
             tableForExcel.Rows.Add(r);
-        }
-
-        private string GetValue(ColumnMapping columnMapping, Dictionary<string, object> row)
-        {
-            if (columnMapping.SourceColumn.Type == typeof(string) || columnMapping.SourceColumn.Type == typeof(int) || columnMapping.SourceColumn.Type == typeof(double)
-                        || columnMapping.SourceColumn.Type == typeof(float) || columnMapping.SourceColumn.Type == typeof(decimal) || columnMapping.SourceColumn.Type == typeof(bool)
-                        || columnMapping.SourceColumn.Type == typeof(long))
-            {
-                return row[columnMapping.SourceColumn.Name].ToString();
-            }
-            else if (columnMapping.SourceColumn.Type == typeof(DateTime))
-            {
-                return ((DateTime)row[columnMapping.SourceColumn.Name]).ToString("dd-MM-yyyy HH:mm:ss:fff");
-            }
-            return null;
         }
 
         private DataTable GetTableForExcel()

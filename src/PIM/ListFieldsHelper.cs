@@ -89,7 +89,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.PIM
                 {
                     if (!FieldOptions.TryGetValue(field, out Dictionary<string, FieldOption> lookupCollection))
                     {
-                        var fieldOptionCollection = categoryListBoxField.FieldOptions;
+                        var fieldOptionCollection = Ecommerce.Services.FieldOptions.GetOptionsByFieldId(categoryListBoxField.Id);
                         lookupCollection = new Dictionary<string, FieldOption>();
                         foreach (var fieldOption in fieldOptionCollection)
                         {
@@ -194,7 +194,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.PIM
                     if (categoryListBoxField != null && categoryListBoxField.Category != null)
                     {
                         var categoryField = Ecommerce.Services.ProductCategoryFields.GetFieldById(categoryListBoxField.Category.Id, categoryListBoxField.Id);
-                        if (categoryField != null && categoryField.FieldOptions != null)
+                        if (categoryField != null)
                         {
                             var categoryFieldOption = Ecommerce.Services.FieldOptions.GetOptionById(option.Id);
                             if (categoryFieldOption != null && !string.IsNullOrEmpty(categoryFieldOption.GetName(languageId)))

@@ -124,7 +124,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.PIM
                     {                        
                         fieldValue = GetListSelectedOptionValueByName(field, fieldValue, categoryField, fieldValueLanguageId);
                     }
-                    if (!IsFieldValueEqual(product.GetCategoryValue(categoryField.Category.Id, categoryField.Id), fieldValue))
+                    if (!IsFieldValueEqual(product.GetCategoryValue(categoryField.Category.Id, categoryField.Id, true), fieldValue))
                     {
                         product.SetCategoryValue(categoryField.Category.Id, categoryField, fieldValue);
                         isChanged = true;
@@ -284,7 +284,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.PIM
                                 var categoryField = FieldsHelper.GetCategoryField(field);
                                 if (categoryField != null)
                                 {
-                                    if (!IsFieldValueEqual(languageProduct.GetCategoryValue(categoryField.Category.Id, categoryField.Id), fieldValue))
+                                    if (!IsFieldValueEqual(languageProduct.GetCategoryValue(categoryField.Category.Id, categoryField.Id, true), fieldValue))
                                     {
                                         ProcessSimpleVariantsWhereVariantEditingIsNotAllowed(ref simpleVariantsWhereVariantEditingIsNotAllowed,
                                             languageProduct, variantId, FieldsHelper.IsCategoryFieldVariantEditingAllowed(categoryField), language.LanguageId, isNewVariantLanguageProduct);
@@ -515,7 +515,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.PIM
                         categoryField = languageField;
                     }
                 }                
-                return GetListSelectedOptionValueByName(value, categoryField.FieldOptions, languageId);
+                return GetListSelectedOptionValueByName(value, Ecommerce.Services.FieldOptions.GetOptionsByFieldId(categoryField.Id), languageId);
             }
             return value;
         }

@@ -8,6 +8,7 @@ using OfficeOpenXml;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Globalization;
 using System.IO;
 using System.Xml;
 using System.Xml.Linq;
@@ -197,15 +198,17 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
             Dictionary<string, object> sourceRow = null;
             try
             {
+                CultureInfo ci = GetCultureInfo(job.Culture);
+
                 if (destinationWriter == null)
                 {
                     if (!string.IsNullOrEmpty(WorkingDirectory))
                     {
-                        destinationWriter = new ExcelDestinationWriter(workingDirectory.CombinePaths(DestinationFolder), $"{Path.GetFileNameWithoutExtension(DestinationFile)}{ExcelExtension}", job.Mappings, Logger);
+                        destinationWriter = new ExcelDestinationWriter(workingDirectory.CombinePaths(DestinationFolder), $"{Path.GetFileNameWithoutExtension(DestinationFile)}{ExcelExtension}", job.Mappings, Logger, ci);
                     }
                     else
                     {
-                        destinationWriter = new ExcelDestinationWriter($"{Path.GetFileNameWithoutExtension(SourceFile)}{ExcelExtension}", "", job.Mappings, Logger);
+                        destinationWriter = new ExcelDestinationWriter($"{Path.GetFileNameWithoutExtension(SourceFile)}{ExcelExtension}", "", job.Mappings, Logger, ci);
                     }
                 }
                 foreach (var mapping in destinationWriter.Mappings)
@@ -244,6 +247,19 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                 sourceRow = null;
             }
             return true;
+        }
+
+        private CultureInfo GetCultureInfo(string culture)
+        {
+            try
+            {
+                return string.IsNullOrWhiteSpace(culture) ? CultureInfo.CurrentCulture : CultureInfo.GetCultureInfo(culture);
+            }
+            catch (CultureNotFoundException ex)
+            {
+                Logger?.Log(string.Format("Error getting culture: {0}. Using {1} instead", ex.Message, CultureInfo.CurrentCulture.Name));
+            }
+            return CultureInfo.CurrentCulture;
         }
 
         private void GetSchemaForTableFromFile(Schema schema, Dictionary<string, ExcelReader> excelReaders)

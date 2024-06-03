@@ -97,9 +97,6 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.PIM
                 case "ProductExcludeFromCustomizedUrls":
                     result = product.ExcludeFromCustomizedUrls;
                     break;
-                case "ProductExcludeFromAllProducts":
-                    result = product.ExcludeFromAllProducts;
-                    break;
                 case "ProductShowInProductList":
                     result = product.ShowInProductList;
                     break;
@@ -127,11 +124,8 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.PIM
                 case "ProductPurchaseQuantityStep":
                     result = product.PurchaseQuantityStep;
                     break;
-                case "ProductVatGrpID":
-                    result = product.VatGroupId;
-                    break;
                 case "ProductManufacturerID":
-                    result = product.Manufacturer?.Name;
+                    result = product.ManufacturerId;
                     break;
                 default:
                     result = GetFieldValue(product, field);
@@ -271,14 +265,6 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.PIM
                         isChanged = true;
                     }
                     break;
-                case "ProductExcludeFromAllProducts":
-                    boolValue = Converter.ToBoolean(value);
-                    if (!string.IsNullOrEmpty(value) && product.ExcludeFromAllProducts != boolValue)
-                    {
-                        product.ExcludeFromAllProducts = boolValue;
-                        isChanged = true;
-                    }
-                    break;
                 case "ProductShowInProductList":
                     boolValue = Converter.ToBoolean(value);
                     if (!string.IsNullOrEmpty(value) && product.ShowInProductList != boolValue)
@@ -398,7 +384,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.PIM
             }
             else if (Field.TryParseUniqueId(fieldSystemName, out var categoryId, out var fieldId))
             {
-                result = Converter.ToString(product.GetCategoryValue(categoryId, fieldId));
+                result = Converter.ToString(product.GetCategoryValue(categoryId, fieldId, true));
             }
             else
             {
@@ -685,7 +671,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider.PIM
             if (fieldValue == null)
             {
                 //default value                
-                fieldValue = product.GetDefaultCategoryValue(field);
+                fieldValue = Ecommerce.Services.ProductCategories.GetProductCategoryFieldValue(product, field);
             }
             return fieldValue;
         }

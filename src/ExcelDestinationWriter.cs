@@ -15,29 +15,46 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
 {
     public class ExcelDestinationWriter : IDestinationWriter, IDisposable
     {
-        private readonly ILogger logger;
+        private readonly ILogger _logger;
+        private readonly CultureInfo _cultureInfo;
 
         public ExcelDestinationWriter()
         {
         }
 
+        [Obsolete("Use overload method (string path, string destinationPath, MappingCollection mappings, ILogger logger, CultureInfo cultureInfo) instead.")]
         public ExcelDestinationWriter(string path, string destinationPath, MappingCollection mappings, ILogger logger)
         {
-            this.path = path;
-            this.mappings = mappings;
+            _path = path;
+            _mappings = mappings;
             if (!Directory.Exists(path))
             {
                 Directory.CreateDirectory(path);
             }
-            this.destinationPath = destinationPath;
-            this.logger = logger;
+            _destinationPath = destinationPath;
+            _logger = logger;
+            _cultureInfo = CultureInfo.CurrentCulture;
         }
 
-        private readonly MappingCollection mappings;
-        private readonly string path;
+        public ExcelDestinationWriter(string path, string destinationPath, MappingCollection mappings, ILogger logger, CultureInfo cultureInfo)
+        {
+
+            _path = path;
+            _mappings = mappings;
+            if (!Directory.Exists(path))
+            {
+                Directory.CreateDirectory(path);
+            }
+            _destinationPath = destinationPath;
+            _logger = logger;
+            _cultureInfo = cultureInfo ?? CultureInfo.CurrentCulture;
+        }
+
+        private readonly MappingCollection _mappings;
+        private readonly string _path;
         private DataSet setForExcel;
         private DataTable tableForExcel;
-        private readonly string destinationPath;
+        private readonly string _destinationPath;
         private Mapping _currentMapping;
         private ColumnMappingCollection _currentColumnMappings;
         public Mapping currentMapping
@@ -57,15 +74,11 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
 
         public virtual MappingCollection Mappings
         {
-            get { return mappings; }
+            get { return _mappings; }
         }
 
         public virtual void Write(Dictionary<string, object> row)
         {
-            //need to change "var cultureInfo = CultureInfo.CurrentCulture" into "columnMapping.Mapping.Job.Culture" inside
-            // foreach (ColumnMapping columnMapping in _currentColumnMappings.Where(cm => cm.Active)), once DW10 is released
-            var cultureInfo = CultureInfo.CurrentCulture;
-
             if (tableForExcel == null)
             {
                 tableForExcel = GetTableForExcel();
@@ -80,13 +93,13 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                     if (columnMapping.SourceColumn.Type == typeof(DateTime))
                     {
                         DateTime theDate = DateTime.Parse(columnMapping.GetScriptValue(), CultureInfo.InvariantCulture);
-                        r[columnMapping.DestinationColumn.Name] = theDate.ToString("dd-MM-yyyy HH:mm:ss:fff", cultureInfo);
+                        r[columnMapping.DestinationColumn.Name] = theDate.ToString("dd-MM-yyyy HH:mm:ss:fff", _cultureInfo);
                     }
                     else if (columnMapping.SourceColumn.Type == typeof(decimal) ||
                         columnMapping.SourceColumn.Type == typeof(double) ||
                         columnMapping.SourceColumn.Type == typeof(float))
                     {
-                        r[columnMapping.DestinationColumn.Name] = ValueFormatter.GetFormattedValue(columnMapping.GetScriptValue(), cultureInfo, columnMapping.ScriptType, columnMapping.ScriptValue);
+                        r[columnMapping.DestinationColumn.Name] = ValueFormatter.GetFormattedValue(columnMapping.GetScriptValue(), _cultureInfo, columnMapping.ScriptType, columnMapping.ScriptValue);
                     }
                     else
                     {
@@ -101,7 +114,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                 {
                     if (DateTime.TryParse(columnMapping.ConvertInputValueToOutputValue(row[columnMapping.SourceColumn.Name])?.ToString(), out var theDateTime))
                     {
-                        r[columnMapping.DestinationColumn.Name] = theDateTime.ToString("dd-MM-yyyy HH:mm:ss:fff", cultureInfo);
+                        r[columnMapping.DestinationColumn.Name] = theDateTime.ToString("dd-MM-yyyy HH:mm:ss:fff", _cultureInfo);
                     }
                     else
                     {
@@ -110,7 +123,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                 }
                 else
                 {
-                    r[columnMapping.DestinationColumn.Name] = string.Format(cultureInfo, "{0}", columnMapping.ConvertInputValueToOutputValue(row[columnMapping.SourceColumn.Name]));
+                    r[columnMapping.DestinationColumn.Name] = string.Format(_cultureInfo, "{0}", columnMapping.ConvertInputValueToOutputValue(row[columnMapping.SourceColumn.Name]));
                 }
             }
             tableForExcel.Rows.Add(r);
@@ -146,7 +159,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
         public void GenerateExcel()
         {
             ExcelPackage.LicenseContext = LicenseContext.Commercial;
-            FileInfo newFileInfo = new FileInfo(path.CombinePaths(destinationPath));
+            FileInfo newFileInfo = new FileInfo(_path.CombinePaths(_destinationPath));
             ExcelPackage pck = null;
             if (newFileInfo.Exists)
             {
@@ -156,7 +169,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                 }
                 catch (Exception ex)
                 {
-                    logger.Log($"Can not write to the existing destination file: {ex.Message}. The file will be overwritten.");
+                    _logger.Log($"Can not write to the existing destination file: {ex.Message}. The file will be overwritten.");
                     File.Delete(newFileInfo.FullName);
                     pck = new ExcelPackage(newFileInfo);
                 }
@@ -183,15 +196,15 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                     }
                     ExcelWorksheet ws = pck.Workbook.Worksheets.Add(table.TableName);
                     ws.Cells["A1"].LoadFromDataTable(table, true);
-                    if (logger != null)
+                    if (_logger != null)
                     {
-                        logger.Log("Added table: " + table.TableName + " Rows: " + table.Rows.Count);
+                        _logger.Log("Added table: " + table.TableName + " Rows: " + table.Rows.Count);
                     }
                 }
                 pck.Save();
-                if (logger != null)
+                if (_logger != null)
                 {
-                    logger.Log("Writing to " + destinationPath + " is saved and finished");
+                    _logger.Log("Writing to " + _destinationPath + " is saved and finished");
                 }
             }
         }

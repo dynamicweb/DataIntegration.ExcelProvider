@@ -49,7 +49,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
 
         public override Schema GetOriginalDestinationSchema()
         {
-            return GetSchema();
+            return schema = new Schema();
         }
 
         public override bool SchemaIsEditable => true;
@@ -97,7 +97,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
             return result;
         }
 
-        private string workingDirectory;
+        private string workingDirectory = SystemInformation.MapPath("/Files/");
         public override string WorkingDirectory
         {
             get
@@ -129,7 +129,6 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
         {
             ExcelProvider newProvider = (ExcelProvider)source;
             SourceFile = newProvider.SourceFile;
-            DestinationFolder = newProvider.DestinationFolder;
         }
 
         public override string Serialize()
@@ -146,13 +145,17 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
             return document.ToString();
         }
 
-        public new virtual void SaveAsXml(XmlTextWriter xmlTextWriter)
+        void ISource.SaveAsXml(XmlTextWriter xmlTextWriter)
         {
             xmlTextWriter.WriteElementString("SourcePath", SourceFile);
+            (this as ISource).GetSchema().SaveAsXml(xmlTextWriter);
+        }
+
+        void IDestination.SaveAsXml(XmlTextWriter xmlTextWriter)
+        {
             xmlTextWriter.WriteElementString("DestinationFile", DestinationFile);
             xmlTextWriter.WriteElementString("DestinationFolder", DestinationFolder);
-            xmlTextWriter.WriteElementString("WorkingDirectory", WorkingDirectory);
-            GetSchema().SaveAsXml(xmlTextWriter);
+            (this as IDestination).GetSchema().SaveAsXml(xmlTextWriter);
         }
 
         public new ISourceReader GetReader(Mapping mapping)
@@ -184,8 +187,9 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
 
         public override void UpdateDestinationSettings(IDestination destination)
         {
-            ISource newProvider = (ISource)destination;
-            UpdateSourceSettings(newProvider);
+            ExcelProvider newProvider = (ExcelProvider)destination;
+            newProvider.DestinationFile = DestinationFile;
+            newProvider.DestinationFolder = DestinationFolder;
         }
 
         public override bool RunJob(Job job)
@@ -277,12 +281,12 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                             columnCount = dt.Columns.Count;
                         }
                         foreach (System.Data.DataColumn c in dt.Columns)
-                        {                            
+                        {
                             Column column = new Column(c.ColumnName, c.DataType, excelTable);
-                            if(!string.IsNullOrEmpty(c.Caption) && !string.Equals(c.Caption, c.ColumnName, StringComparison.OrdinalIgnoreCase))
+                            if (!string.IsNullOrEmpty(c.Caption) && !string.Equals(c.Caption, c.ColumnName, StringComparison.OrdinalIgnoreCase))
                             {
                                 column.NameWithWhitespaceStripped = c.Caption;
-                            }                            
+                            }
                             excelTable.AddColumn(column);
                         }
 
@@ -298,12 +302,15 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
             }
         }
 
-        public override Schema GetSchema()
+        Schema IDestination.GetSchema()
         {
-            if (schema == null)
-            {
-                schema = GetOriginalSourceSchema();
-            }
+            schema ??= new Schema();
+            return schema;
+        }
+
+        Schema ISource.GetSchema()
+        {
+            schema ??= GetOriginalSourceSchema();
             return schema;
         }
 
@@ -342,16 +349,11 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                             DestinationFolder = node.FirstChild.Value;
                         }
                         break;
-                    case "WorkingDirectory":
-                        if (node.HasChildNodes)
-                        {
-                            WorkingDirectory = node.FirstChild.Value;
-                        }
-                        break;
 
                 }
             }
         }
+
         internal ExcelProvider(Dictionary<string, ExcelReader> excelReaders, Schema schema, ExcelDestinationWriter writer)
         {
             this.schema = schema;
@@ -370,6 +372,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
 
         public override void OverwriteDestinationSchemaToOriginal()
         {
+            schema = new Schema();
         }
 
         public override string ValidateDestinationSettings()

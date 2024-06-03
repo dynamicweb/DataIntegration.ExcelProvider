@@ -90,49 +90,42 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
             {
                 if (columnMapping.HasScriptWithValue)
                 {
-                    string value;
                     if (columnMapping.SourceColumn.Type == typeof(DateTime))
                     {
-                        DateTime theDate = DateTime.Parse(columnMapping.GetScriptValue());
-                        value = theDate.ToString("dd-MM-yyyy HH:mm:ss:fff", _cultureInfo);
+                        DateTime theDate = DateTime.Parse(columnMapping.GetScriptValue(), CultureInfo.InvariantCulture);
+                        r[columnMapping.DestinationColumn.Name] = theDate.ToString("dd-MM-yyyy HH:mm:ss:fff", _cultureInfo);
                     }
                     else if (columnMapping.SourceColumn.Type == typeof(decimal) ||
                         columnMapping.SourceColumn.Type == typeof(double) ||
                         columnMapping.SourceColumn.Type == typeof(float))
                     {
-                        value = ValueFormatter.GetFormattedValue(columnMapping.GetScriptValue(), _cultureInfo, columnMapping.ScriptType, columnMapping.ScriptValue);
+                        r[columnMapping.DestinationColumn.Name] = ValueFormatter.GetFormattedValue(columnMapping.GetScriptValue(), _cultureInfo, columnMapping.ScriptType, columnMapping.ScriptValue);
                     }
                     else
                     {
-                        value = columnMapping.GetScriptValue();
+                        r[columnMapping.DestinationColumn.Name] = columnMapping.GetScriptValue();
                     }
-
-                    r[columnMapping.DestinationColumn.Name] = value;
                 }
-                else if (row.TryGetValue(columnMapping.SourceColumn?.Name ?? "", out object rowValue))
+                else if (row[columnMapping.SourceColumn.Name] == DBNull.Value)
                 {
-                    if (columnMapping.SourceColumn.Type == typeof(DateTime))
+                    r[columnMapping.DestinationColumn.Name] = "NULL";
+                }
+                else if (columnMapping.SourceColumn.Type == typeof(DateTime))
+                {
+                    if (DateTime.TryParse(columnMapping.ConvertInputValueToOutputValue(row[columnMapping.SourceColumn.Name])?.ToString(), out var theDateTime))
                     {
-                        if (DateTime.TryParse(columnMapping.ConvertInputValueToOutputValue(rowValue)?.ToString(), out var theDateTime))
-                        {
-                            r[columnMapping.DestinationColumn.Name] = theDateTime.ToString("dd-MM-yyyy HH:mm:ss:fff", _cultureInfo);
-                        }
-                        else
-                        {
-                            r[columnMapping.DestinationColumn.Name] = DateTime.MinValue.ToString("dd-MM-yyyy HH:mm:ss:fff", CultureInfo.InvariantCulture);
-                        }
-                    }
-                    if (rowValue == DBNull.Value)
-                    {
-                        r[columnMapping.DestinationColumn.Name] = "NULL";
+                        r[columnMapping.DestinationColumn.Name] = theDateTime.ToString("dd-MM-yyyy HH:mm:ss:fff", _cultureInfo);
                     }
                     else
                     {
-                        r[columnMapping.DestinationColumn.Name] = string.Format(_cultureInfo, "{0}", columnMapping.ConvertInputValueToOutputValue(rowValue)) ?? "NULL";
+                        r[columnMapping.DestinationColumn.Name] = DateTime.MinValue.ToString("dd-MM-yyyy HH:mm:ss:fff", CultureInfo.InvariantCulture);
                     }
+                }
+                else
+                {
+                    r[columnMapping.DestinationColumn.Name] = string.Format(_cultureInfo, "{0}", columnMapping.ConvertInputValueToOutputValue(row[columnMapping.SourceColumn.Name]));
                 }
             }
-
             tableForExcel.Rows.Add(r);
         }
 

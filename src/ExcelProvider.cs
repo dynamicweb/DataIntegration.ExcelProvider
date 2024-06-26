@@ -166,18 +166,22 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
             {
                 if (!string.IsNullOrEmpty(WorkingDirectory))
                 {
-                    return new ExcelSourceReader(GetSourceFilePath(), mapping, this);
+                    var sourceFilePath = GetSourceFilePath();
+					if (!File.Exists(sourceFilePath))
+                        throw new Exception($"Source file {SourceFile} does not exist - Working Directory {WorkingDirectory}");
+
+					return new ExcelSourceReader(sourceFilePath, mapping, this);
                 }
                 else
                 {
-                    return new ExcelSourceReader(SourceFile, mapping, this);
+					if (!File.Exists(SourceFile))
+						throw new Exception($"Source file {SourceFile} does not exist - Working Directory {WorkingDirectory}");
+
+					return new ExcelSourceReader(SourceFile, mapping, this);
                 }
             }
             else
-            {
-                Logger?.Error("The file is not a Excel file");
-                return null;
-            }
+				throw new Exception("The file is not a Excel file");
         }
 
         public override void Close()

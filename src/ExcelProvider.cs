@@ -223,8 +223,10 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                         while (!sourceReader.IsDone())
                         {
                             sourceRow = sourceReader.GetNext();
-                            ProcessInputRow(mapping, sourceRow);
-                            destinationWriter.Write(sourceRow);
+                            if (ProcessInputRow(sourceRow, mapping))
+                            {
+                                destinationWriter.Write(sourceRow);
+                            }
                         }
                         destinationWriter.AddTableToSet();
                     }

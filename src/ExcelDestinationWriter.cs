@@ -90,14 +90,14 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
             {
                 if (columnMapping.HasScriptWithValue)
                 {
-                    if (columnMapping.SourceColumn.Type == typeof(DateTime))
+                    if (columnMapping.DestinationColumn.Type == typeof(DateTime))
                     {
                         DateTime theDate = DateTime.Parse(columnMapping.GetScriptValue(), CultureInfo.InvariantCulture);
                         r[columnMapping.DestinationColumn.Name] = theDate.ToString("dd-MM-yyyy HH:mm:ss:fff", _cultureInfo);
                     }
-                    else if (columnMapping.SourceColumn.Type == typeof(decimal) ||
-                        columnMapping.SourceColumn.Type == typeof(double) ||
-                        columnMapping.SourceColumn.Type == typeof(float))
+                    else if (columnMapping.DestinationColumn.Type == typeof(decimal) ||
+                        columnMapping.DestinationColumn.Type == typeof(double) ||
+                        columnMapping.DestinationColumn.Type == typeof(float))
                     {
                         r[columnMapping.DestinationColumn.Name] = ValueFormatter.GetFormattedValue(columnMapping.GetScriptValue(), _cultureInfo, columnMapping.ScriptType, columnMapping.ScriptValue);
                     }

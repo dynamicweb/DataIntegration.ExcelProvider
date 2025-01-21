@@ -49,7 +49,8 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
 
         public override Schema GetOriginalDestinationSchema()
         {
-            return schema = new Schema();
+            schema ??= GetOriginalSourceSchema();
+            return schema;
         }
 
         public override bool SchemaIsEditable => true;
@@ -310,7 +311,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
 
         Schema IDestination.GetSchema()
         {
-            schema ??= new Schema();
+            schema ??= GetOriginalSourceSchema();
             return schema;
         }
 
@@ -377,8 +378,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
         }
 
         public override void OverwriteDestinationSchemaToOriginal()
-        {
-            schema = new Schema();
+        {           
         }
 
         public override string ValidateDestinationSettings()

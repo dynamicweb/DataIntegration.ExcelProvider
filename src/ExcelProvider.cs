@@ -1,4 +1,5 @@
 ﻿using Dynamicweb.Core;
+using Dynamicweb.Core.Helpers;
 using Dynamicweb.DataIntegration.Integration;
 using Dynamicweb.DataIntegration.Integration.Interfaces;
 using Dynamicweb.Extensibility.AddIns;
@@ -57,22 +58,16 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
 
         public override Schema GetOriginalSourceSchema()
         {
-            Schema result = new Schema();
-
-            string currentPath = SourceFile;
-            if (!string.IsNullOrEmpty(workingDirectory))
-            {
-                currentPath = workingDirectory.CombinePaths(SourceFile);
-            }
+            Schema result = new Schema();            
 
             var sourceFilePath = GetSourceFilePath();
             if (File.Exists(sourceFilePath))
             {
                 try
                 {
-                    if (currentPath.EndsWith(".xls", StringComparison.OrdinalIgnoreCase) ||
-                        currentPath.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) ||
-                        currentPath.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase))
+                    if (SourceFile.EndsWith(".xls", StringComparison.OrdinalIgnoreCase) ||
+                        SourceFile.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) ||
+                        SourceFile.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase))
                     {
                         Dictionary<string, ExcelReader> excelReaders = new Dictionary<string, ExcelReader>
                         {
@@ -116,11 +111,11 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
             {
                 if (SourceFile.StartsWith(".."))
                 {
-                    srcFilePath = (this.WorkingDirectory.CombinePaths(SourceFile.TrimStart(new char[] { '.' })).Replace("\\", "/"));
+                    srcFilePath = WorkingDirectory.CombinePaths(SourceFile.TrimStart(new char[] { '.' })).Replace("\\", "/");
                 }
                 else
                 {
-                    srcFilePath = this.WorkingDirectory.CombinePaths(FilesFolderName, SourceFile).Replace("\\", "/");
+                    srcFilePath = SystemInformation.MapPath(FilePathHelper.GetRelativePath(SourceFile, "/Files"));                    
                 }
             }
             return srcFilePath;

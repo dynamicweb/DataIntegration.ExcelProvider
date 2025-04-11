@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Xml;
 using System.Xml.Linq;
 
@@ -20,9 +21,12 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
     public class ExcelProvider : BaseProvider, ISource, IDestination, IParameterOptions
     {
         private const string ExcelExtension = ".xlsx";
-        //path should point to a folder - if it doesn't, write will fail.
+        private const string ExcelFilesSearchPattern = "*.xls*";
 
-        [AddInParameter("Source file"), AddInParameterEditor(typeof(FileManagerEditor), "folder=/Files/;required"), AddInParameterGroup("Source")]
+        [AddInParameter("Source folder"), AddInParameterEditor(typeof(FolderSelectEditor), "folder=/Files/;"), AddInParameterGroup("Source")]
+        public string SourceFolder { get; set; }
+
+        [AddInParameter("Source file"), AddInParameterEditor(typeof(FileManagerEditor), "folder=/Files/;Tooltip=Selecting a source file will override source folder selection"), AddInParameterGroup("Source")]
         public string SourceFile { get; set; }
 
         [AddInParameter("Destination file"), AddInParameterEditor(typeof(TextParameterEditor), $"append={ExcelExtension};required"), AddInParameterGroup("Destination")]
@@ -56,38 +60,61 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
 
         public override bool SchemaIsEditable => true;
 
+        private bool IsFolderUsed => string.IsNullOrEmpty(SourceFile);
+
         public override Schema GetOriginalSourceSchema()
         {
-            Schema result = new Schema();            
+            Schema result = new Schema();
 
-            var sourceFilePath = GetSourceFilePath();
-            if (File.Exists(sourceFilePath))
+            if (!IsFolderUsed)
             {
-                try
+                var sourceFilePath = GetSourceFilePath(SourceFile);
+                if (File.Exists(sourceFilePath))
                 {
-                    if (SourceFile.EndsWith(".xls", StringComparison.OrdinalIgnoreCase) ||
-                        SourceFile.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) ||
-                        SourceFile.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase))
+                    try
+                    {
+                        if (SourceFile.EndsWith(".xls", StringComparison.OrdinalIgnoreCase) ||
+                            SourceFile.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) ||
+                            SourceFile.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase))
+                        {
+                            Dictionary<string, ExcelReader> excelReaders = new Dictionary<string, ExcelReader>
+                        {
+                            { sourceFilePath, new ExcelReader(sourceFilePath) }
+                        };
+                            GetSchemaForTableFromFile(result, excelReaders);
+                        }
+                        else
+                        {
+                            Logger?.Error("File is not an Excel file");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger?.Error(string.Format("GetOriginalSourceSchema error reading file: {0} message: {1} stack: {2}", sourceFilePath, ex.Message, ex.StackTrace));
+                    }
+                }
+                else
+                {
+                    Logger?.Error($"Source file {sourceFilePath} does not exist");
+                }
+            }
+            else
+            {
+                foreach (var sourceFilePath in GetSourceFolderFiles())
+                {
+                    try
                     {
                         Dictionary<string, ExcelReader> excelReaders = new Dictionary<string, ExcelReader>
                         {
                             { sourceFilePath, new ExcelReader(sourceFilePath) }
                         };
-                        GetSchemaForTableFromFile(result, excelReaders);
+                        GetSchemaForTableFromFile(result, excelReaders, true);
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        Logger?.Error("File is not an Excel file");
+                        Logger?.Error(string.Format("GetOriginalSourceSchema error reading file: {0} message: {1} stack: {2}", sourceFilePath, ex.Message, ex.StackTrace));
                     }
                 }
-                catch (Exception ex)
-                {
-                    Logger?.Error(string.Format("GetOriginalSourceSchema error reading file: {0} message: {1} stack: {2}", sourceFilePath, ex.Message, ex.StackTrace));
-                }
-            }
-            else
-            {
-                Logger?.Error($"Source file {sourceFilePath} does not exist");
             }
 
             return result;
@@ -103,28 +130,41 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
             set { workingDirectory = value.Replace("\\", "/"); }
         }
 
-        private string GetSourceFilePath()
+        private string GetSourceFilePath(string filePath)
         {
             string srcFilePath = string.Empty;
 
-            if (!string.IsNullOrEmpty(SourceFile))
+            if (!string.IsNullOrEmpty(filePath))
             {
-                if (SourceFile.StartsWith(".."))
+                if (filePath.StartsWith(".."))
                 {
-                    srcFilePath = WorkingDirectory.CombinePaths(SourceFile.TrimStart(new char[] { '.' })).Replace("\\", "/");
+                    srcFilePath = WorkingDirectory.CombinePaths(filePath.TrimStart(new char[] { '.' })).Replace("\\", "/");
                 }
                 else
                 {
-                    srcFilePath = SystemInformation.MapPath(FilePathHelper.GetRelativePath(SourceFile, "/Files"));                    
+                    srcFilePath = SystemInformation.MapPath(FilePathHelper.GetRelativePath(filePath, "/Files"));
                 }
             }
             return srcFilePath;
+        }
+
+        private string SourceFolderPath => SystemInformation.MapPath(FilePathHelper.GetRelativePath(SourceFolder, "/Files"));
+
+        private IEnumerable<string> GetSourceFolderFiles()
+        {
+            var folderPath = SourceFolderPath;            
+            if (Directory.Exists(folderPath))
+            {
+                return Directory.EnumerateFiles(folderPath, ExcelFilesSearchPattern, SearchOption.TopDirectoryOnly);
+            }
+            return Enumerable.Empty<string>();
         }
 
         public override void UpdateSourceSettings(ISource source)
         {
             ExcelProvider newProvider = (ExcelProvider)source;
             SourceFile = newProvider.SourceFile;
+            SourceFolder = newProvider.SourceFolder;
         }
 
         public override string Serialize()
@@ -135,6 +175,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
             document.Add(root);
 
             root.Add(CreateParameterNode(GetType(), "Source file", SourceFile));
+            root.Add(CreateParameterNode(GetType(), "Source folder", SourceFolder));
             root.Add(CreateParameterNode(GetType(), "Destination file", DestinationFile));
             root.Add(CreateParameterNode(GetType(), "Destination folder", DestinationFolder));
 
@@ -144,6 +185,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
         void ISource.SaveAsXml(XmlTextWriter xmlTextWriter)
         {
             xmlTextWriter.WriteElementString("SourcePath", SourceFile);
+            xmlTextWriter.WriteElementString("SourceFolder", SourceFolder);
             (this as ISource).GetSchema().SaveAsXml(xmlTextWriter);
         }
 
@@ -156,28 +198,45 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
 
         public new ISourceReader GetReader(Mapping mapping)
         {
-            if (SourceFile.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) ||
-                SourceFile.EndsWith(".xls", StringComparison.OrdinalIgnoreCase) ||
-                SourceFile.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase))
+            string filePath;
+            if (!IsFolderUsed)
             {
-                if (!string.IsNullOrEmpty(WorkingDirectory))
-                {
-                    var sourceFilePath = GetSourceFilePath();
-					if (!File.Exists(sourceFilePath))
-                        throw new Exception($"Source file {SourceFile} does not exist - Working Directory {WorkingDirectory}");
+                filePath = SourceFile;
 
-					return new ExcelSourceReader(sourceFilePath, mapping, this);
+                if (filePath.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) ||
+                filePath.EndsWith(".xls", StringComparison.OrdinalIgnoreCase) ||
+                filePath.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!string.IsNullOrEmpty(WorkingDirectory))
+                    {
+                        var sourceFilePath = GetSourceFilePath(filePath);
+                        if (!File.Exists(sourceFilePath))
+                            throw new Exception($"Source file {SourceFile} does not exist - Working Directory {WorkingDirectory}");
+
+                        return new ExcelSourceReader(sourceFilePath, mapping, this);
+                    }
+                    else
+                    {
+                        if (!File.Exists(filePath))
+                            throw new Exception($"Source file {filePath} does not exist - Working Directory {WorkingDirectory}");
+
+                        return new ExcelSourceReader(filePath, mapping, this);
+                    }
                 }
                 else
-                {
-					if (!File.Exists(SourceFile))
-						throw new Exception($"Source file {SourceFile} does not exist - Working Directory {WorkingDirectory}");
-
-					return new ExcelSourceReader(SourceFile, mapping, this);
-                }
+                    throw new Exception("The file is not a Excel file");
             }
             else
-				throw new Exception("The file is not a Excel file");
+            {
+                string folderPath = SourceFolderPath;
+                var fileName = mapping.SourceTable.SqlSchema;
+                filePath = Directory.EnumerateFiles(folderPath, ExcelFilesSearchPattern, SearchOption.TopDirectoryOnly).FirstOrDefault(f => f.EndsWith(fileName, StringComparison.OrdinalIgnoreCase));                
+                if (!File.Exists(filePath))
+                {                    
+                    throw new Exception($"Source file {fileName} does not exist in the Directory {folderPath}");
+                }
+                return new ExcelSourceReader(filePath, mapping, this);
+            }
         }
 
         public override void Close()
@@ -264,13 +323,17 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
             return CultureInfo.CurrentCulture;
         }
 
-        private void GetSchemaForTableFromFile(Schema schema, Dictionary<string, ExcelReader> excelReaders)
+        private void GetSchemaForTableFromFile(Schema schema, Dictionary<string, ExcelReader> excelReaders, bool isFolderUsed = false)
         {
             foreach (var reader in excelReaders)
             {
                 foreach (DataTable dt in reader.Value.ExcelSet.Tables)
                 {
                     Table excelTable = schema.AddTable(dt.TableName);
+                    if (isFolderUsed)
+                    {
+                        excelTable.SqlSchema = Path.GetFileName(reader.Key);
+                    }
                     try
                     {
                         int columnCount;
@@ -339,6 +402,12 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                             SourceFile = node.FirstChild.Value;
                         }
                         break;
+                    case "SourceFolder":
+                        if (node.HasChildNodes)
+                        {
+                            SourceFolder = node.FirstChild.Value;
+                        }
+                        break;
                     case "DestinationFile":
                         if (node.HasChildNodes)
                         {
@@ -373,7 +442,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
         }
 
         public override void OverwriteDestinationSchemaToOriginal()
-        {           
+        {
         }
 
         public override string ValidateDestinationSettings()
@@ -388,40 +457,69 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
 
         public override string ValidateSourceSettings()
         {
-            ExcelPackage.LicenseContext = LicenseContext.Commercial;
-            if (SourceFile.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) ||
-                SourceFile.EndsWith(".xls", StringComparison.OrdinalIgnoreCase) ||
-                SourceFile.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrEmpty(SourceFile) && string.IsNullOrEmpty(SourceFolder))
             {
-                string filename = GetSourceFilePath();
-                if (!File.Exists(filename))
-                {
-                    return $"Excel file \"{SourceFile}\" does not exist. WorkingDirectory - {WorkingDirectory}";
-                }
+                return "No Source file neither folder are selected";
+            }
+            if (IsFolderUsed)
+            {
+                string srcFolderPath = SourceFolderPath;
 
-                try
+                if (!Directory.Exists(srcFolderPath))
                 {
-                    using (var package = new ExcelPackage(new FileInfo(filename)))
+                    return "Source folder \"" + SourceFolder + "\" does not exist";
+                }
+                else
+                {
+                    var files = GetSourceFolderFiles();
+
+                    if (files.Count() == 0)
                     {
-                        foreach (var worksheet in package.Workbook.Worksheets)
-                        {
-                            string sheetName = worksheet.Name;
-
-                            if (sheetName.Contains(' '))
-                            {
-                                return $"{sheetName} contains whitespaces";
-                            }
-                        }
+                        return "There are no Excel files with the extensions: [*.xlsx, *.xls, *.xlsm] in the source folder ";
                     }
-                }
-                catch (Exception ex)
-                {
-                    return $"Could not open source file: {filename} message: {ex.Message} stack: {ex.StackTrace}";
                 }
             }
             else
             {
-                return "The file is not an Excel file";
+                ExcelPackage.LicenseContext = LicenseContext.Commercial;
+                if (SourceFile.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) ||
+                    SourceFile.EndsWith(".xls", StringComparison.OrdinalIgnoreCase) ||
+                    SourceFile.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase))
+                {
+                    string filename = GetSourceFilePath(SourceFile);
+                    if (!File.Exists(filename))
+                    {
+                        return $"Excel file \"{SourceFile}\" does not exist. WorkingDirectory - {WorkingDirectory}";
+                    }
+
+                    try
+                    {
+                        using (var package = new ExcelPackage(new FileInfo(filename)))
+                        {
+                            foreach (var worksheet in package.Workbook.Worksheets)
+                            {
+                                string sheetName = worksheet.Name;
+
+                                if (sheetName.Contains(' '))
+                                {
+                                    return $"{sheetName} contains whitespaces";
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        return $"Could not open source file: {filename} message: {ex.Message} stack: {ex.StackTrace}";
+                    }
+                }
+                else
+                {
+                    return "The file is not an Excel file";
+                }
+            }
+            if (!string.IsNullOrEmpty(SourceFile) && !string.IsNullOrEmpty(SourceFolder))
+            {
+                return "Warning: In your Excel Provider source, you selected both a source file and a source folder. The source folder selection will be ignored, and only the source file will be used.";
             }
             return null;
         }

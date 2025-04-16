@@ -490,27 +490,7 @@ namespace Dynamicweb.DataIntegration.Providers.ExcelProvider
                     if (!File.Exists(filename))
                     {
                         return $"Excel file \"{SourceFile}\" does not exist. WorkingDirectory - {WorkingDirectory}";
-                    }
-
-                    try
-                    {
-                        using (var package = new ExcelPackage(new FileInfo(filename)))
-                        {
-                            foreach (var worksheet in package.Workbook.Worksheets)
-                            {
-                                string sheetName = worksheet.Name;
-
-                                if (sheetName.Contains(' '))
-                                {
-                                    return $"{sheetName} contains whitespaces";
-                                }
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        return $"Could not open source file: {filename} message: {ex.Message} stack: {ex.StackTrace}";
-                    }
+                    }                    
                 }
                 else
                 {

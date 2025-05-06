@@ -25,9 +25,7 @@
 	<ItemGroup>
 		<PackageReference Include="Dynamicweb.DataIntegration" Version="10.6.2" />
 		<PackageReference Include="Dynamicweb.Ecommerce" Version="10.6.2" />
-		<PackageReference Include="EPPlus" Version="7.7.1" />
-		<PackageReference Include="EPPlus.Interfaces" Version="7.7.0" />
-		<PackageReference Include="Microsoft.IO.RecyclableMemoryStream" Version="3.0.1" />
+		<PackageReference Include="EPPlus" Version="7.7.1" />				
 		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" />
 	</ItemGroup>
 </Project>
